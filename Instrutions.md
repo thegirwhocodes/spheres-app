@@ -39,3 +39,4 @@
 36. have the values quiz come with subscriptisomn/pro plan - idk, for smart schedular to do that or no, what woudl be best/better for custoemr catching/retention?
 37. Work on the app to school app
 38. Use google cloud or build a cloud backend that allows the user to
+39. AI suggestion annoying if I already closed it once - work on fleshing out that deature

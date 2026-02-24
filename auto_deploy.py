@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 Auto-deploy Spheres app to GitHub.
-Runs before Claude Code context compaction to save all work.
+
+Usage:
+  python3 auto_deploy.py                          # Emergency auto-save (context compaction)
+  python3 auto_deploy.py "feat: add Gmail OAuth"  # Deploy with descriptive message
 """
 
 import subprocess
@@ -34,15 +37,19 @@ def main():
     # Stage all tracked + new files (respects .gitignore)
     run("git add -A")
 
-    # Build commit message with timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     changed_files = run("git diff --cached --name-only")
     file_count = len(changed_files.splitlines()) if changed_files else 0
 
-    message = (
-        f"Auto-save: {timestamp} ({file_count} files)\n\n"
-        f"Session snapshot before context compaction."
-    )
+    # Use provided message or fall back to auto-save
+    if len(sys.argv) > 1:
+        custom_msg = sys.argv[1]
+        message = f"{custom_msg}\n\nDeployed: {timestamp} ({file_count} files)"
+    else:
+        message = (
+            f"Auto-save: {timestamp} ({file_count} files)\n\n"
+            f"Session snapshot before context compaction."
+        )
 
     # Commit
     result = subprocess.run(
