@@ -41,6 +41,7 @@ enum TaskSource: String, Codable {
     case notes = "Notes"
     case voiceMemos = "Voice Memos"
     case iMessage = "iMessage"
+    case calendar = "Calendar"
     case manual = "Manual"
 
     var icon: String {
@@ -50,6 +51,7 @@ enum TaskSource: String, Codable {
         case .notes: return "note.text"
         case .voiceMemos: return "waveform"
         case .iMessage: return "message.fill"
+        case .calendar: return "calendar"
         case .manual: return "keyboard"
         }
     }
@@ -61,6 +63,7 @@ enum TaskSource: String, Codable {
         case .notes: return "yellow"
         case .voiceMemos: return "red"
         case .iMessage: return "green"
+        case .calendar: return "teal"
         case .manual: return "purple"
         }
     }
@@ -72,6 +75,7 @@ enum TaskSource: String, Codable {
         case .notes: return true      // Automation permission
         case .voiceMemos: return true // File access
         case .iMessage: return true   // Full Disk Access (App Store blocked)
+        case .calendar: return true   // EventKit permission
         case .manual: return false
         }
     }
@@ -219,6 +223,8 @@ class SourceAdapterManager: ObservableObject {
             return UserDefaults.standard.bool(forKey: "permission.voiceMemos")
         case .iMessage:
             return UserDefaults.standard.bool(forKey: "permission.imessage")
+        case .calendar:
+            return UserDefaults.standard.bool(forKey: "permission.calendar")
         case .manual:
             return true
         }

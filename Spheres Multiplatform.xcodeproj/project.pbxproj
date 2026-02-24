@@ -26,6 +26,8 @@
 		B1234567890ABCDEF12345B0 /* EnergyIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345B1 /* EnergyIntelligence.swift */; };
 		B1234567890ABCDEF12345B2 /* EnergyOnboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345B3 /* EnergyOnboarding.swift */; };
 		B1234567890ABCDEF12345B4 /* SmartScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345B5 /* SmartScheduleView.swift */; };
+		B1234567890ABCDEF12345E7 /* SmartSetupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345E8 /* SmartSetupService.swift */; };
+		B1234567890ABCDEF12345E9 /* SmartSetupOnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345EA /* SmartSetupOnboardingFlow.swift */; };
 		B1234567890ABCDEF12345C0 /* UserProfileModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345C1 /* UserProfileModel.swift */; };
 		B1234567890ABCDEF12345C2 /* MemoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345C3 /* MemoryService.swift */; };
 		B1234567890ABCDEF12345C4 /* PersonalizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345C5 /* PersonalizationService.swift */; };
@@ -88,6 +90,8 @@
 		B1234567890ABCDEF12345B1 /* EnergyIntelligence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyIntelligence.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345B3 /* EnergyOnboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyOnboarding.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345B5 /* SmartScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartScheduleView.swift; sourceTree = "<group>"; };
+		B1234567890ABCDEF12345E8 /* SmartSetupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartSetupService.swift; sourceTree = "<group>"; };
+		B1234567890ABCDEF12345EA /* SmartSetupOnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartSetupOnboardingFlow.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345C1 /* UserProfileModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileModel.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345C3 /* MemoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryService.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345C5 /* PersonalizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalizationService.swift; sourceTree = "<group>"; };
@@ -176,6 +180,8 @@
 				B1234567890ABCDEF12345B1 /* EnergyIntelligence.swift */,
 				B1234567890ABCDEF12345B3 /* EnergyOnboarding.swift */,
 				B1234567890ABCDEF12345B5 /* SmartScheduleView.swift */,
+				B1234567890ABCDEF12345E8 /* SmartSetupService.swift */,
+				B1234567890ABCDEF12345EA /* SmartSetupOnboardingFlow.swift */,
 				B1234567890ABCDEF12345C1 /* UserProfileModel.swift */,
 				B1234567890ABCDEF12345C3 /* MemoryService.swift */,
 				B1234567890ABCDEF12345C5 /* PersonalizationService.swift */,
@@ -339,6 +345,8 @@
 				B1234567890ABCDEF12345B0 /* EnergyIntelligence.swift in Sources */,
 				B1234567890ABCDEF12345B2 /* EnergyOnboarding.swift in Sources */,
 				B1234567890ABCDEF12345B4 /* SmartScheduleView.swift in Sources */,
+				B1234567890ABCDEF12345E7 /* SmartSetupService.swift in Sources */,
+				B1234567890ABCDEF12345E9 /* SmartSetupOnboardingFlow.swift in Sources */,
 				B1234567890ABCDEF12345C0 /* UserProfileModel.swift in Sources */,
 				B1234567890ABCDEF12345C2 /* MemoryService.swift in Sources */,
 				B1234567890ABCDEF12345C4 /* PersonalizationService.swift in Sources */,

@@ -491,6 +491,15 @@ class AIService: ObservableObject {
 
     // MARK: - API Communication
     private func sendMessage(_ content: String, maxTokens: Int) async throws -> String {
+        try await sendMessage(content, maxTokens: maxTokens, model: "claude-3-haiku-20240307")
+    }
+
+    /// Send a message with a specific model and optional system prompt (used by Smart Setup)
+    func sendStructuredMessage(_ content: String, systemPrompt: String? = nil, maxTokens: Int, model: String = "claude-sonnet-4-20250514") async throws -> String {
+        try await sendMessage(content, maxTokens: maxTokens, model: model, systemPrompt: systemPrompt)
+    }
+
+    private func sendMessage(_ content: String, maxTokens: Int, model: String, systemPrompt: String? = nil) async throws -> String {
         guard !apiKey.isEmpty else {
             throw AIError.noAPIKey
         }
@@ -505,13 +514,17 @@ class AIService: ObservableObject {
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
-        let body: [String: Any] = [
-            "model": "claude-3-haiku-20240307",
+        var body: [String: Any] = [
+            "model": model,
             "max_tokens": maxTokens,
             "messages": [
                 ["role": "user", "content": content]
             ]
         ]
+
+        if let systemPrompt = systemPrompt {
+            body["system"] = systemPrompt
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

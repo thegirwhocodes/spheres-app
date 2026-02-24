@@ -15,109 +15,25 @@ class DataManager {
 
     private init() {}
 
-    // MARK: - Initial Data Seeding
-    func seedInitialDataIfNeeded(modelContext: ModelContext) {
-        // Check if we already have spheres
-        let descriptor = FetchDescriptor<SphereModel>()
+    // MARK: - One-time cleanup of default spheres and sample loops
+    private let defaultSphereNames: Set<String> = [
+        "Spiritual", "Health", "Family", "Career", "Education", "Creative"
+    ]
+
+    func cleanupDefaultDataIfNeeded(modelContext: ModelContext) {
+        guard !UserDefaults.standard.bool(forKey: "hasCleanedDefaultSpheres") else { return }
         do {
-            let existingCount = try modelContext.fetchCount(descriptor)
-            print("DEBUG: Found \(existingCount) existing spheres")
-            if existingCount == 0 {
-                print("DEBUG: Seeding default spheres...")
-                seedDefaultSpheres(modelContext: modelContext)
+            let allSpheres = try modelContext.fetch(FetchDescriptor<SphereModel>())
+            for sphere in allSpheres where defaultSphereNames.contains(sphere.name) {
+                // Cascade delete removes associated loops
+                modelContext.delete(sphere)
             }
-        } catch {
-            print("DEBUG: Error checking spheres: \(error)")
-            // Try to seed anyway
-            seedDefaultSpheres(modelContext: modelContext)
-        }
-    }
-
-    private func seedDefaultSpheres(modelContext: ModelContext) {
-        // Create default spheres with sample loops
-        // Using explicit RGB colors to avoid conversion issues
-        let spheresData: [(String, String, Color, String, Int)] = [
-            ("Spiritual", "sparkles", Color(red: 0.55, green: 0.36, blue: 0.96), "Faith, prayer, meditation", 1),
-            ("Health", "heart.fill", Color(red: 0.2, green: 0.78, blue: 0.35), "Fitness, nutrition, sleep", 1),
-            ("Family", "figure.2.and.child.holdinghands", Color(red: 1.0, green: 0.4, blue: 0.6), "Parents, siblings, loved ones", 2),
-            ("Career", "briefcase.fill", Color(red: 0.2, green: 0.5, blue: 1.0), "Work, professional growth", 2),
-            ("Education", "book.fill", Color(red: 1.0, green: 0.6, blue: 0.2), "Learning, courses, skills", 3),
-            ("Creative", "paintbrush.fill", Color(red: 0.3, green: 0.85, blue: 0.9), "Art, music, writing", 4),
-        ]
-
-        for (name, icon, color, description, rank) in spheresData {
-            let sphere = SphereModel(
-                name: name,
-                icon: icon,
-                color: color,
-                description: description,
-                priorityRank: rank
-            )
-            modelContext.insert(sphere)
-            print("DEBUG: Inserted sphere: \(name)")
-
-            // Add sample loops based on sphere
-            addSampleLoops(for: sphere, modelContext: modelContext)
-        }
-
-        do {
             try modelContext.save()
-            print("DEBUG: Successfully saved \(spheresData.count) spheres")
+            UserDefaults.standard.set(true, forKey: "hasCleanedDefaultSpheres")
+            UserDefaults.standard.set(true, forKey: "hasCleanedSampleLoops")
+            print("DEBUG: Cleaned up default spheres and sample loops")
         } catch {
-            print("DEBUG: Failed to save spheres: \(error)")
-        }
-    }
-
-    private func addSampleLoops(for sphere: SphereModel, modelContext: ModelContext) {
-        let loopsData: [(String, Int, Double, Int?)]
-
-        switch sphere.name {
-        case "Spiritual":
-            loopsData = [
-                ("Finish church presentation slides", 1, 0.6, 120),
-                ("Read chapter 5 of devotional book", 3, 0.0, 30),
-            ]
-        case "Health":
-            loopsData = [
-                ("Schedule annual checkup", 2, 0.0, 15),
-            ]
-        case "Family":
-            loopsData = [
-                ("Call mom about Thanksgiving", 1, 0.0, 30),
-                ("Plan dad's birthday gift", 2, 0.3, 60),
-                ("Send photos to grandma", 4, 0.0, 15),
-            ]
-        case "Career":
-            loopsData = [
-                ("Prepare quarterly review", 1, 0.75, 180),
-                ("Research salary benchmarks", 2, 0.4, 60),
-                ("Update LinkedIn profile", 3, 0.0, 45),
-                ("Draft email to manager", 2, 0.9, 20),
-            ]
-        case "Education":
-            loopsData = [
-                ("Finish Swift course module 7", 2, 0.65, 90),
-                ("Read 'Atomic Habits' Ch 3-5", 3, 0.0, 60),
-            ]
-        case "Creative":
-            loopsData = [
-                ("Write blog post draft", 3, 0.2, 120),
-                ("Edit podcast episode", 2, 0.8, 90),
-                ("Sketch app icon ideas", 4, 0.0, 45),
-            ]
-        default:
-            loopsData = []
-        }
-
-        for (content, importance, progress, minutes) in loopsData {
-            let loop = OpenLoopModel(
-                content: content,
-                sphere: sphere,
-                importance: importance,
-                progress: progress,
-                estimatedMinutes: minutes
-            )
-            modelContext.insert(loop)
+            print("DEBUG: Error cleaning default data: \(error)")
         }
     }
 

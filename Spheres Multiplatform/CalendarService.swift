@@ -436,6 +436,98 @@ extension CalendarService {
 
         return Array(freeSlots.prefix(3)) // Return top 3 slots
     }
+
+    // MARK: - Smart Setup: Calendar Summarization
+
+    /// Summarize recent calendar activity for AI analysis during Smart Setup
+    /// Groups events by keyword patterns and returns a human-readable summary
+    func summarizeRecentActivity(days: Int = 30) -> String {
+        guard hasAccess else { return "Calendar access not granted." }
+
+        let calendar = Calendar.current
+        let now = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -days, to: now) else { return "" }
+
+        let predicate = eventStore.predicateForEvents(withStart: startDate, end: now, calendars: nil)
+        let allEvents = eventStore.events(matching: predicate)
+
+        guard !allEvents.isEmpty else { return "No calendar events in the last \(days) days." }
+
+        // Group events by normalized title
+        var categories: [String: (count: Int, titles: Set<String>, hours: Set<Int>, weekdays: Set<Int>)] = [:]
+
+        for event in allEvents {
+            let title = event.title ?? "Untitled"
+            let normalized = normalizeEventTitle(title)
+            let hour = calendar.component(.hour, from: event.startDate)
+            let weekday = calendar.component(.weekday, from: event.startDate)
+
+            var entry = categories[normalized] ?? (count: 0, titles: [], hours: [], weekdays: [])
+            entry.count += 1
+            entry.titles.insert(title)
+            entry.hours.insert(hour)
+            entry.weekdays.insert(weekday)
+            categories[normalized] = entry
+        }
+
+        // Sort by frequency and build summary
+        let sorted = categories.sorted { $0.value.count > $1.value.count }
+        var lines: [String] = []
+        lines.append("Total events in last \(days) days: \(allEvents.count)")
+
+        for (category, data) in sorted.prefix(15) {
+            let displayName = data.titles.first ?? category
+            let timeRange = formatHourRange(data.hours)
+            let dayPattern = formatWeekdayPattern(data.weekdays)
+            let frequency = data.count >= days ? "\(data.count / (days / 7))/week" : "\(data.count) total"
+            lines.append("- \(displayName) (\(frequency), \(dayPattern), \(timeRange))")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func normalizeEventTitle(_ title: String) -> String {
+        // Strip common prefixes/suffixes and lowercase for grouping
+        let lowered = title.lowercased()
+            .replacingOccurrences(of: "weekly ", with: "")
+            .replacingOccurrences(of: "daily ", with: "")
+            .replacingOccurrences(of: "monthly ", with: "")
+            .trimmingCharacters(in: .whitespaces)
+
+        // Group by first 3 significant words
+        let words = lowered.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        return words.prefix(3).joined(separator: " ")
+    }
+
+    private func formatHourRange(_ hours: Set<Int>) -> String {
+        guard let minHour = hours.min(), let maxHour = hours.max() else { return "" }
+        if minHour == maxHour {
+            return "\(formatHour(minHour))"
+        }
+        return "\(formatHour(minHour))-\(formatHour(maxHour))"
+    }
+
+    private func formatHour(_ hour: Int) -> String {
+        if hour == 0 { return "12am" }
+        if hour < 12 { return "\(hour)am" }
+        if hour == 12 { return "12pm" }
+        return "\(hour - 12)pm"
+    }
+
+    private func formatWeekdayPattern(_ weekdays: Set<Int>) -> String {
+        let allDays: Set<Int> = [1, 2, 3, 4, 5, 6, 7]
+        let weekdaySet: Set<Int> = [2, 3, 4, 5, 6] // Mon-Fri
+        let weekendSet: Set<Int> = [1, 7] // Sun, Sat
+
+        if weekdays.isSuperset(of: weekdaySet) && weekdays.isDisjoint(with: weekendSet) {
+            return "Mon-Fri"
+        }
+        if weekdays == weekendSet { return "weekends" }
+        if weekdays == allDays { return "daily" }
+
+        let dayNames = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return weekdays.sorted().compactMap { $0 < dayNames.count ? dayNames[$0] : nil }.joined(separator: "/")
+    }
 }
 
 // MARK: - Unified Calendar Event (works with both EKEvent and Google API)

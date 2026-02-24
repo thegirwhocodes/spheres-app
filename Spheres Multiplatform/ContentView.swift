@@ -196,7 +196,7 @@ struct ContentView: View {
             }
 
             if showingOnboarding {
-                UnifiedOnboardingFlow(isPresented: $showingOnboarding)
+                SmartSetupOnboardingFlow(isPresented: $showingOnboarding)
             }
 
             if showingProactivePopup, let loop = proactiveLoop, let slot = proactiveSlot {
@@ -462,10 +462,14 @@ struct SidebarView: View {
 
             Spacer()
 
-            // Sync Status + Update (combined)
-            SidebarStatusBar()
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+            // Sync Status + Update
+            HStack(spacing: 8) {
+                EnhancedSignInStatus()
+                AppUpdateButton()
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
         .frame(width: 200)
         .background(
@@ -477,82 +481,44 @@ struct SidebarView: View {
 }
 
 // MARK: - Sidebar Status Bar (Sign-in + Update combined)
-struct SidebarStatusBar: View {
-    @StateObject private var cloudKit = CloudKitService.shared
+struct AppUpdateButton: View {
     @State private var isHovering = false
     @State private var isUpdating = false
     @State private var rotation: Double = 0
-    @State private var showingSignInPopover = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Sign-in icon (always visible, clickable)
-            Button(action: { showingSignInPopover = true }) {
-                HStack(spacing: 6) {
-                    Image(systemName: cloudKit.isSignedIn ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark")
-                        .font(.system(size: 14))
-                        .foregroundColor(cloudKit.isSignedIn ? .green : .orange)
+        Button(action: { runUpdate() }) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 14))
+                    .rotationEffect(.degrees(rotation))
 
-                    if isHovering && !isUpdating {
-                        Text(cloudKit.isSignedIn ? "Signed In" : "Sign In")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(cloudKit.isSignedIn ? .green : .orange)
-                            .lineLimit(1)
-                            .fixedSize()
-                            .transition(.opacity.combined(with: .move(edge: .trailing)))
-                    }
+                if isHovering || isUpdating {
+                    Text(isUpdating ? "Updating..." : "Update")
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
             }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showingSignInPopover, arrowEdge: .bottom) {
-                SignInDetailPopover()
-            }
-
-            // Divider dot (only on hover)
-            if isHovering || isUpdating {
-                Circle()
-                    .fill(SpheresTheme.textMuted.opacity(0.4))
-                    .frame(width: 3, height: 3)
-                    .padding(.horizontal, 6)
-                    .transition(.opacity)
-            }
-
-            // Update button (slides out on hover)
-            if isHovering || isUpdating {
-                Button(action: { runUpdate() }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 12))
-                            .rotationEffect(.degrees(rotation))
-                        Text(isUpdating ? "Updating..." : "Update")
-                            .font(.system(size: 11, weight: .medium))
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
-                    .foregroundColor(isUpdating ? .blue : .cyan)
-                }
-                .buttonStyle(.plain)
-                .disabled(isUpdating)
-                .transition(.opacity.combined(with: .move(edge: .leading)))
-            }
+            .foregroundColor(SpheresTheme.accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(SpheresTheme.accent.opacity(0.1))
+                    .overlay(
+                        Capsule()
+                            .stroke(SpheresTheme.accent.opacity(0.25), lineWidth: 1)
+                    )
+            )
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(cloudKit.isSignedIn ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
-                .overlay(
-                    Capsule()
-                        .stroke((cloudKit.isSignedIn ? Color.green : Color.orange).opacity(0.3), lineWidth: 1)
-                )
-        )
+        .buttonStyle(.plain)
+        .disabled(isUpdating)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovering = hovering
             }
-        }
-        .onAppear {
-            cloudKit.checkAccountStatus()
         }
     }
 
@@ -784,7 +750,7 @@ struct SpheresView: View {
         }
         .onAppear {
             if !hasSeededData {
-                DataManager.shared.seedInitialDataIfNeeded(modelContext: modelContext)
+                DataManager.shared.cleanupDefaultDataIfNeeded(modelContext: modelContext)
                 hasSeededData = true
             }
         }
@@ -1854,9 +1820,6 @@ struct HomeView: View {
 
                 // iCloud Sync Banner (shows once for new users)
                 SyncSetupBanner()
-
-                // Privacy Dashboard
-                PrivacyDashboard()
 
                 // Resurfacing Section
                 VStack(alignment: .leading, spacing: 16) {
