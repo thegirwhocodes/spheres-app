@@ -607,6 +607,8 @@ struct SpheresView: View {
     @State private var editingSphereFromGrid: SphereModel? = nil
     @State private var hasSeededData = false
     @State private var draggingSphere: SphereModel? = nil
+    @State private var sphereToDelete: SphereModel? = nil
+    @State private var showingDeleteConfirmation = false
 
     let columns = [
         GridItem(.flexible(minimum: 180), spacing: 16),
@@ -675,6 +677,10 @@ struct SpheresView: View {
                                         },
                                         onEdit: {
                                             editingSphereFromGrid = sphere
+                                        },
+                                        onDelete: {
+                                            sphereToDelete = sphere
+                                            showingDeleteConfirmation = true
                                         }
                                     )
                                     .opacity(draggingSphere?.id == sphere.id ? 0.5 : 1.0)
@@ -740,6 +746,25 @@ struct SpheresView: View {
                 set: { if !$0 { editingSphereFromGrid = nil } }
             ))
         }
+        .alert("Delete Sphere?", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { sphereToDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let sphere = sphereToDelete {
+                    deleteSpherefromGrid(sphere)
+                }
+            }
+        } message: {
+            Text("This will permanently delete \"\(sphereToDelete?.name ?? "")\" and all its loops.")
+        }
+    }
+
+    private func deleteSpherefromGrid(_ sphere: SphereModel) {
+        for loop in sphere.loops ?? [] {
+            modelContext.delete(loop)
+        }
+        modelContext.delete(sphere)
+        try? modelContext.save()
+        sphereToDelete = nil
     }
 
     // MARK: - Reorder Spheres
@@ -774,6 +799,7 @@ struct CompactSphereCard: View {
     let onTap: () -> Void
     let onQuickView: () -> Void
     var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
     @State private var isHovered = false
     @State private var headerHovered = false
 
@@ -924,6 +950,21 @@ struct CompactSphereCard: View {
                 isHovered = hovering
             }
         }
+        .contextMenu {
+            Button(action: { onEdit?() }) {
+                Label("Edit Sphere", systemImage: "pencil")
+            }
+
+            Button(action: { onQuickView() }) {
+                Label("Quick View", systemImage: "eye")
+            }
+
+            Divider()
+
+            Button(role: .destructive, action: { onDelete?() }) {
+                Label("Delete Sphere", systemImage: "trash")
+            }
+        }
     }
 
     private func priorityColor(_ priority: Int) -> Color {
@@ -1005,6 +1046,83 @@ struct MiniProgressPie: View {
 
 
 
+// MARK: - Modern Sphere Action Menu
+struct SphereActionMenu: View {
+    let sphere: SphereModel
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    @State private var editHovered = false
+    @State private var deleteHovered = false
+
+    var body: some View {
+        VStack(spacing: 2) {
+            // Edit row
+            Button(action: onEdit) {
+                HStack(spacing: 10) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(editHovered ? sphere.color : SpheresTheme.textSecondary)
+                        .frame(width: 20)
+                    Text("Edit Sphere")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(editHovered ? SpheresTheme.textPrimary : SpheresTheme.textSecondary)
+                    Spacer()
+                    Text("\u{2318}E")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(SpheresTheme.textTertiary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(editHovered ? SpheresTheme.surfaceHover : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { editHovered = h } }
+
+            // Divider
+            Rectangle()
+                .fill(SpheresTheme.border)
+                .frame(height: 0.5)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+
+            // Delete row
+            Button(action: onDelete) {
+                HStack(spacing: 10) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(deleteHovered ? .red : SpheresTheme.textTertiary)
+                        .frame(width: 20)
+                    Text("Delete Sphere")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(deleteHovered ? .red : SpheresTheme.textTertiary)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(deleteHovered ? Color.red.opacity(0.1) : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { deleteHovered = h } }
+        }
+        .padding(6)
+        .frame(width: 200)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(SpheresTheme.border.opacity(0.5), lineWidth: 0.5)
+                )
+        )
+    }
+}
+
 // MARK: - Sphere Full Page View
 struct SphereFullPageView: View {
     let sphere: SphereModel
@@ -1016,7 +1134,9 @@ struct SphereFullPageView: View {
     @State private var draggedLoop: OpenLoopModel?
     @State private var showingEditSphere = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingSphereMenu = false
     @State private var headerHovered = false
+    @State private var menuButtonHovered = false
     @AppStorage("showCompletedLoops") private var showCompletedLoops: Bool = true
 
     private var activeLoops: [OpenLoopModel] {
@@ -1055,24 +1175,32 @@ struct SphereFullPageView: View {
 
                 Spacer()
 
-                Menu {
-                    Button(action: { showingEditSphere = true }) {
-                        Label("Edit Sphere", systemImage: "pencil")
-                    }
-
-                    Divider()
-
-                    Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
-                        Label("Delete Sphere", systemImage: "trash")
-                    }
-                } label: {
+                Button(action: { showingSphereMenu.toggle() }) {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16))
-                        .foregroundColor(SpheresTheme.textSecondary)
-                        .frame(width: 32, height: 32)
+                        .foregroundColor(menuButtonHovered ? SpheresTheme.textPrimary : SpheresTheme.textSecondary)
+                        .frame(width: 34, height: 34)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(menuButtonHovered ? SpheresTheme.surfaceHover : Color.clear)
+                        )
                         .contentShape(Rectangle())
                 }
-                .menuStyle(.borderlessButton)
+                .buttonStyle(.plain)
+                .onHover { h in withAnimation(.easeInOut(duration: 0.15)) { menuButtonHovered = h } }
+                .popover(isPresented: $showingSphereMenu, arrowEdge: .top) {
+                    SphereActionMenu(
+                        sphere: sphere,
+                        onEdit: {
+                            showingSphereMenu = false
+                            showingEditSphere = true
+                        },
+                        onDelete: {
+                            showingSphereMenu = false
+                            showingDeleteConfirmation = true
+                        }
+                    )
+                }
             }
             .padding(.horizontal, 32)
             .padding(.top, 20)
@@ -1104,15 +1232,9 @@ struct SphereFullPageView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 8) {
-                            Text(sphere.name)
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(SpheresTheme.textPrimary)
-
-                            Image(systemName: "pencil")
-                                .font(.system(size: 12))
-                                .foregroundColor(SpheresTheme.textTertiary.opacity(headerHovered ? 0.8 : 0.3))
-                        }
+                        Text(sphere.name)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(SpheresTheme.textPrimary)
 
                         HStack(spacing: 12) {
                             HStack(spacing: 4) {
