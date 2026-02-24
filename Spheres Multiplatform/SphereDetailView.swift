@@ -8,6 +8,80 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Modern Sphere Action Menu
+struct SphereActionMenu: View {
+    let sphere: SphereModel
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    @State private var editHovered = false
+    @State private var deleteHovered = false
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Button(action: onEdit) {
+                HStack(spacing: 10) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(editHovered ? sphere.color : SpheresTheme.textSecondary)
+                        .frame(width: 20)
+                    Text("Edit Sphere")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(editHovered ? SpheresTheme.textPrimary : SpheresTheme.textSecondary)
+                    Spacer()
+                    Text("\u{2318}E")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(SpheresTheme.textTertiary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(editHovered ? SpheresTheme.surfaceHover : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { editHovered = h } }
+
+            Rectangle()
+                .fill(SpheresTheme.border)
+                .frame(height: 0.5)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+
+            Button(action: onDelete) {
+                HStack(spacing: 10) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(deleteHovered ? .red : SpheresTheme.textTertiary)
+                        .frame(width: 20)
+                    Text("Delete Sphere")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(deleteHovered ? .red : SpheresTheme.textTertiary)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(deleteHovered ? Color.red.opacity(0.1) : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { deleteHovered = h } }
+        }
+        .padding(6)
+        .frame(width: 200)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(SpheresTheme.border.opacity(0.5), lineWidth: 0.5)
+                )
+        )
+    }
+}
+
 // MARK: - Sphere Full Page View
 struct SphereFullPageView: View {
     let sphere: SphereModel
@@ -19,6 +93,8 @@ struct SphereFullPageView: View {
     @State private var draggedLoop: OpenLoopModel?
     @State private var showingEditSphere = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingSphereMenu = false
+    @State private var menuButtonHovered = false
     @State private var headerHovered = false
     @AppStorage("showCompletedLoops") private var showCompletedLoops: Bool = true
 
@@ -58,24 +134,32 @@ struct SphereFullPageView: View {
 
                 Spacer()
 
-                Menu {
-                    Button(action: { showingEditSphere = true }) {
-                        Label("Edit Sphere", systemImage: "pencil")
-                    }
-
-                    Divider()
-
-                    Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
-                        Label("Delete Sphere", systemImage: "trash")
-                    }
-                } label: {
+                Button(action: { showingSphereMenu.toggle() }) {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16))
-                        .foregroundColor(SpheresTheme.textSecondary)
-                        .frame(width: 32, height: 32)
+                        .foregroundColor(menuButtonHovered ? SpheresTheme.textPrimary : SpheresTheme.textSecondary)
+                        .frame(width: 34, height: 34)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(menuButtonHovered ? SpheresTheme.surfaceHover : Color.clear)
+                        )
                         .contentShape(Rectangle())
                 }
-                .menuStyle(.borderlessButton)
+                .buttonStyle(.plain)
+                .onHover { h in withAnimation(.easeInOut(duration: 0.15)) { menuButtonHovered = h } }
+                .popover(isPresented: $showingSphereMenu, arrowEdge: .top) {
+                    SphereActionMenu(
+                        sphere: sphere,
+                        onEdit: {
+                            showingSphereMenu = false
+                            showingEditSphere = true
+                        },
+                        onDelete: {
+                            showingSphereMenu = false
+                            showingDeleteConfirmation = true
+                        }
+                    )
+                }
             }
             .padding(.horizontal, 32)
             .padding(.top, 20)
@@ -407,32 +491,95 @@ struct DetailLoopCard: View {
     @State private var showingDeleteConfirm = false
     @State private var showingEditSheet = false
     @State private var timerTick = false
+    @State private var swipeOffset: CGFloat = 0
+    @State private var showingSwipeDelete = false
 
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .stroke(SpheresTheme.border, lineWidth: 3)
-                    .frame(width: 44, height: 44)
+        ZStack(alignment: .trailing) {
+            // Swipe-to-delete background
+            if swipeOffset < -30 {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            swipeOffset = 0
+                        }
+                        deleteLoop()
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 16))
+                            Text("Delete")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: 70, height: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxHeight: .infinity)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.red.opacity(0.85))
+                )
+                .transition(.opacity)
+            }
 
-                Circle()
-                    .trim(from: 0, to: loop.progress)
-                    .stroke(sphereColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 44, height: 44)
+            // Main card content
+            mainCardContent
+                .offset(x: swipeOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onChanged { value in
+                            if value.translation.width < 0 {
+                                swipeOffset = max(value.translation.width, -80)
+                            } else if swipeOffset < 0 {
+                                swipeOffset = min(0, swipeOffset + value.translation.width)
+                            }
+                        }
+                        .onEnded { value in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                if swipeOffset < -45 {
+                                    swipeOffset = -75
+                                } else {
+                                    swipeOffset = 0
+                                }
+                            }
+                        }
+                )
+        }
+        .clipped()
+    }
 
-                if loop.isCompleted {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(sphereColor)
-                } else {
-                    Text("\(Int(loop.progress * 100))%")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
+    private var mainCardContent: some View {
+        HStack(spacing: 12) {
+            // Completion circle
+            Button(action: { toggleComplete() }) {
+                ZStack {
+                    Circle()
+                        .stroke(sphereColor.opacity(0.3), lineWidth: 2)
+                        .frame(width: 22, height: 22)
+
+                    if loop.isCompleted {
+                        Circle()
+                            .fill(sphereColor)
+                            .frame(width: 22, height: 22)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                    } else if loop.progress > 0 {
+                        Circle()
+                            .trim(from: 0, to: loop.progress)
+                            .stroke(sphereColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 22, height: 22)
+                    }
                 }
             }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(loop.content)
@@ -441,13 +588,19 @@ struct DetailLoopCard: View {
                     .strikethrough(loop.isCompleted)
 
                 HStack(spacing: 10) {
+                    // Priority dots (more filled = higher priority)
                     HStack(spacing: 3) {
-                        Text("Priority")
-                            .font(.system(size: 11))
-                            .foregroundColor(SpheresTheme.textTertiary)
+                        ForEach(1...5, id: \.self) { level in
+                            Circle()
+                                .fill(level <= (6 - loop.importance) ? sphereColor : SpheresTheme.border)
+                                .frame(width: 4, height: 4)
+                        }
+                    }
 
-                        Text("\(loop.importance)")
-                            .font(.system(size: 11, weight: .semibold))
+                    // Progress percentage (only when in progress)
+                    if loop.progress > 0 && !loop.isCompleted {
+                        Text("\(Int(loop.progress * 100))%")
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(sphereColor)
                     }
 
@@ -727,9 +880,12 @@ struct AddLoopSheet: View {
     let sphere: SphereModel
     @Environment(\.modelContext) private var modelContext
     @AppStorage("defaultPriority") private var defaultPriority: Int = 3
+    @StateObject private var aiService = AIService.shared
     @State private var content = ""
     @State private var importance = 3
     @State private var estimatedMinutes: String = ""
+    @State private var isProcessing = false
+    @State private var aiDidProcess = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -759,11 +915,11 @@ struct AddLoopSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("What's on your mind?")
+                Text("Describe the task — include urgency and time needed")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(SpheresTheme.textSecondary)
 
-                TextField("e.g., Call the dentist, Review project proposal", text: $content)
+                TextField("e.g., \"Review proposal by Friday, ~45 min, high priority\"", text: $content)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .padding(12)
@@ -772,12 +928,23 @@ struct AddLoopSheet: View {
                             .fill(SpheresTheme.background)
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(SpheresTheme.border))
                     )
+                    .onSubmit {
+                        if !content.isEmpty { Task { await processAndCreate() } }
+                    }
             }
 
+            // AI-determined fields (editable)
             VStack(alignment: .leading, spacing: 8) {
-                Text("Priority (1 = highest)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(SpheresTheme.textSecondary)
+                HStack(spacing: 4) {
+                    Text("Priority")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(SpheresTheme.textSecondary)
+                    if aiDidProcess {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 9))
+                            .foregroundColor(SpheresTheme.accent.opacity(0.7))
+                    }
+                }
 
                 HStack(spacing: 10) {
                     ForEach(1...5, id: \.self) { rank in
@@ -798,9 +965,16 @@ struct AddLoopSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Estimated time (optional)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(SpheresTheme.textSecondary)
+                HStack(spacing: 4) {
+                    Text("Estimated time")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(SpheresTheme.textSecondary)
+                    if aiDidProcess {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 9))
+                            .foregroundColor(SpheresTheme.accent.opacity(0.7))
+                    }
+                }
 
                 HStack {
                     TextField("e.g., 30", text: $estimatedMinutes)
@@ -824,23 +998,67 @@ struct AddLoopSheet: View {
 
             HStack(spacing: 12) {
                 Button("Cancel") { isPresented = false }
-                    .buttonStyle(GhostButtonStyle())
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(SpheresTheme.textSecondary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(SpheresTheme.textSecondary.opacity(0.08)))
+                    .buttonStyle(.plain)
 
-                Button("Add Loop") {
-                    createLoop()
-                    isPresented = false
+                Button {
+                    Task { await processAndCreate() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if isProcessing {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 12, height: 12)
+                        } else {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 11))
+                        }
+                        Text(isProcessing ? "Processing..." : "Add Loop")
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(SpheresTheme.accent)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(SpheresTheme.accent.opacity(0.12)))
                 }
-                .buttonStyle(AccentButtonStyle())
-                .disabled(content.isEmpty)
+                .buttonStyle(.plain)
+                .disabled(content.isEmpty || isProcessing)
             }
         }
-        .padding(24)
-        .frame(width: 400, height: 380)
-        .background(SpheresTheme.surface)
+        .padding(28)
+        .frame(width: 420, height: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(SpheresTheme.border, lineWidth: 0.5)
+                )
+        )
         .onAppear { importance = defaultPriority }
     }
 
-    private func createLoop() {
+    private func processAndCreate() async {
+        isProcessing = true
+
+        // Try AI processing to extract priority + time
+        if aiService.hasAPIKey {
+            let result = await aiService.processOpenLoop(content, spheres: [sphere])
+            if let result = result {
+                importance = result.priority
+                if let mins = result.estimatedMinutes {
+                    estimatedMinutes = "\(mins)"
+                }
+                content = result.content // Use cleaned-up task name
+                aiDidProcess = true
+            }
+        }
+
+        // Create the loop
         let minutes = Int(estimatedMinutes)
         let _ = DataManager.shared.createLoop(
             content: content,
@@ -850,6 +1068,9 @@ struct AddLoopSheet: View {
             estimatedMinutes: minutes,
             modelContext: modelContext
         )
+
+        isProcessing = false
+        isPresented = false
     }
 }
 
@@ -1115,19 +1336,36 @@ struct EditLoopSheet: View {
 
             HStack(spacing: 12) {
                 Button("Cancel") { isPresented = false }
-                    .buttonStyle(GhostButtonStyle())
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(SpheresTheme.textSecondary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(SpheresTheme.textSecondary.opacity(0.08)))
+                    .buttonStyle(.plain)
 
                 Button("Save Changes") {
                     saveChanges()
                     isPresented = false
                 }
-                .buttonStyle(AccentButtonStyle())
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(SpheresTheme.accent)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 9)
+                .background(RoundedRectangle(cornerRadius: 8).fill(SpheresTheme.accent.opacity(0.12)))
+                .buttonStyle(.plain)
                 .disabled(content.isEmpty)
             }
         }
-        .padding(24)
+        .padding(28)
         .frame(width: 420, height: sheetHeight)
-        .background(SpheresTheme.surface)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(SpheresTheme.border, lineWidth: 0.5)
+                )
+        )
         .onAppear {
             content = loop.content
             importance = loop.importance

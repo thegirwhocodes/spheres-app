@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - Spheres View (Compact Grid)
+// MARK: - Spheres View (Clustered Bubbles)
 struct SpheresView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\SphereModel.priorityRank), SortDescriptor(\SphereModel.createdDate)]) private var spheres: [SphereModel]
@@ -19,17 +19,13 @@ struct SpheresView: View {
     @State private var editingSphereFromGrid: SphereModel? = nil
     @State private var hasSeededData = false
     @State private var draggingSphere: SphereModel? = nil
-
-    let columns = [
-        GridItem(.flexible(minimum: 180), spacing: 16),
-        GridItem(.flexible(minimum: 180), spacing: 16),
-        GridItem(.flexible(minimum: 180), spacing: 16)
-    ]
+    @State private var sphereToDelete: SphereModel? = nil
+    @State private var showingDeleteConfirmation = false
+    @State private var hoveredSphereId: UUID? = nil
 
     var body: some View {
         ZStack {
             if let sphere = selectedSphereForFullView {
-                // Full Page Sphere View
                 SphereFullPageView(
                     sphere: sphere,
                     loops: (sphere.loops ?? []).sorted { $0.importance < $1.importance },
@@ -38,7 +34,6 @@ struct SpheresView: View {
                 )
                 .transition(.move(edge: .trailing))
             } else {
-                // Grid View
                 VStack(spacing: 0) {
                     // Header
                     HStack(alignment: .center) {
@@ -68,15 +63,20 @@ struct SpheresView: View {
                     .padding(.top, 24)
                     .padding(.bottom, 16)
 
-                    // Main Content
+                    // Cluster Content
                     ScrollView {
-                        VStack(spacing: 16) {
-                            // Spheres Grid (Drag to Reorder)
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(spheres) { sphere in
-                                    CompactSphereCard(
+                        GeometryReader { geo in
+                            let layout = clusterLayout(count: spheres.count, containerWidth: geo.size.width)
+
+                            ZStack(alignment: .topLeading) {
+                                ForEach(Array(spheres.enumerated()), id: \.element.id) { index, sphere in
+                                    let pos = index < layout.positions.count ? layout.positions[index] : .zero
+                                    let size = ballDiameter(for: sphere.priorityRank)
+
+                                    BouncySphereOrb(
                                         sphere: sphere,
                                         loops: (sphere.loops ?? []).sorted { $0.importance < $1.importance },
+                                        ballSize: size,
                                         onTap: {
                                             withAnimation(.easeInOut(duration: 0.25)) {
                                                 selectedSphereForFullView = sphere
@@ -87,24 +87,27 @@ struct SpheresView: View {
                                         },
                                         onEdit: {
                                             editingSphereFromGrid = sphere
-                                        }
+                                        },
+                                        onDelete: {
+                                            sphereToDelete = sphere
+                                            showingDeleteConfirmation = true
+                                        },
+                                        hoveredSphereId: $hoveredSphereId
                                     )
-                                    .opacity(draggingSphere?.id == sphere.id ? 0.5 : 1.0)
+                                    .frame(width: size, height: size)
+                                    .position(x: pos.x, y: pos.y)
+                                    .zIndex(hoveredSphereId == sphere.id ? 100 : Double(10 - sphere.priorityRank))
+                                    .opacity(draggingSphere?.id == sphere.id ? 0.4 : 1.0)
                                     .draggable(sphere.id.uuidString) {
-                                        // Drag preview
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(sphere.color.opacity(0.8))
-                                            .frame(width: 120, height: 80)
-                                            .overlay(
-                                                VStack(spacing: 4) {
-                                                    Image(systemName: sphere.icon)
-                                                        .font(.system(size: 20))
-                                                    Text(sphere.name)
-                                                        .font(.system(size: 11, weight: .medium))
-                                                }
+                                        ZStack {
+                                            Circle()
+                                                .fill(sphere.color.opacity(0.85))
+                                                .frame(width: 60, height: 60)
+                                            Image(systemName: sphere.icon)
+                                                .font(.system(size: 20))
                                                 .foregroundColor(.white)
-                                            )
-                                            .onAppear { draggingSphere = sphere }
+                                        }
+                                        .onAppear { draggingSphere = sphere }
                                     }
                                     .dropDestination(for: String.self) { items, _ in
                                         guard let droppedId = items.first,
@@ -113,8 +116,6 @@ struct SpheresView: View {
                                               sourceSphere.id != sphere.id else {
                                             return false
                                         }
-
-                                        // Reorder: move source to target's position
                                         withAnimation(.easeInOut(duration: 0.2)) {
                                             reorderSpheres(from: sourceSphere, to: sphere)
                                         }
@@ -123,11 +124,9 @@ struct SpheresView: View {
                                     }
                                 }
                             }
-                            .padding(.horizontal, 32)
-
-                            Spacer()
-                                .frame(height: 20)
+                            .frame(width: geo.size.width, height: layout.totalHeight)
                         }
+                        .frame(minHeight: clusterLayout(count: spheres.count, containerWidth: 800).totalHeight)
                     }
                 }
                 .transition(.move(edge: .leading))
@@ -152,6 +151,89 @@ struct SpheresView: View {
                 set: { if !$0 { editingSphereFromGrid = nil } }
             ))
         }
+        .alert("Delete Sphere?", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { sphereToDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let sphere = sphereToDelete {
+                    deleteSphereFromGrid(sphere)
+                }
+            }
+        } message: {
+            Text("This will permanently delete \"\(sphereToDelete?.name ?? "")\" and all its loops.")
+        }
+    }
+
+    // MARK: - Ball Sizing
+    private func ballDiameter(for rank: Int) -> CGFloat {
+        switch rank {
+        case 1: return 240
+        case 2: return 210
+        case 3: return 185
+        case 4: return 165
+        default: return 145
+        }
+    }
+
+    // MARK: - Honeycomb Cluster Layout
+    private struct ClusterLayout {
+        let positions: [CGPoint]
+        let totalHeight: CGFloat
+    }
+
+    private func clusterLayout(count: Int, containerWidth: CGFloat) -> ClusterLayout {
+        guard count > 0 else { return ClusterLayout(positions: [], totalHeight: 300) }
+
+        // Honeycomb: 3 cols on even rows, 2 cols on odd rows (shifted)
+        let hSpacing: CGFloat = 195     // horizontal center-to-center
+        let vSpacing: CGFloat = 170     // vertical center-to-center (tight = overlap)
+        let stagger: CGFloat = hSpacing / 2
+
+        var positions: [CGPoint] = []
+        var idx = 0
+        var row = 0
+
+        while idx < count {
+            let isWideRow = row % 2 == 0
+            let maxInRow = isWideRow ? 3 : 2
+            let itemsInRow = min(maxInRow, count - idx)
+
+            // Center the row
+            let rowWidth = CGFloat(itemsInRow - 1) * hSpacing
+            let rowStartX: CGFloat
+            if isWideRow {
+                rowStartX = (containerWidth - rowWidth) / 2
+            } else {
+                let narrowRowWidth = CGFloat(itemsInRow - 1) * hSpacing
+                rowStartX = (containerWidth - narrowRowWidth) / 2
+            }
+
+            let y = CGFloat(row) * vSpacing + 140  // top padding for largest ball
+
+            for j in 0..<itemsInRow {
+                let x = rowStartX + CGFloat(j) * hSpacing
+                // Small organic jitter based on index
+                let jitterX = CGFloat(((idx + j) * 7 + 3) % 5 - 2) * 4
+                let jitterY = CGFloat(((idx + j) * 11 + 1) % 5 - 2) * 3
+                positions.append(CGPoint(x: x + jitterX, y: y + jitterY))
+            }
+
+            idx += itemsInRow
+            row += 1
+        }
+
+        let maxY = positions.map(\.y).max() ?? 140
+        let totalHeight = maxY + 140  // bottom padding
+
+        return ClusterLayout(positions: positions, totalHeight: totalHeight)
+    }
+
+    private func deleteSphereFromGrid(_ sphere: SphereModel) {
+        for loop in sphere.loops ?? [] {
+            modelContext.delete(loop)
+        }
+        modelContext.delete(sphere)
+        try? modelContext.save()
+        sphereToDelete = nil
     }
 
     // MARK: - Reorder Spheres
@@ -159,192 +241,217 @@ struct SpheresView: View {
         let sourceIndex = spheres.firstIndex(where: { $0.id == source.id }) ?? 0
         let targetIndex = spheres.firstIndex(where: { $0.id == target.id }) ?? 0
 
-        // Update priority ranks
         if sourceIndex < targetIndex {
-            // Moving down: shift items up
             for i in (sourceIndex + 1)...targetIndex {
                 spheres[i].priorityRank = i - 1
             }
             source.priorityRank = targetIndex
         } else {
-            // Moving up: shift items down
             for i in targetIndex..<sourceIndex {
                 spheres[i].priorityRank = i + 1
             }
             source.priorityRank = targetIndex
         }
 
-        // Save changes
         try? modelContext.save()
     }
 }
 
-// MARK: - Compact Sphere Card (Gallery Style)
-struct CompactSphereCard: View {
+// MARK: - Bouncy Sphere Orb (Interactive Ball with content inside)
+struct BouncySphereOrb: View {
     let sphere: SphereModel
     let loops: [OpenLoopModel]
+    let ballSize: CGFloat
     let onTap: () -> Void
     let onQuickView: () -> Void
     var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    @Binding var hoveredSphereId: UUID?
+
     @State private var isHovered = false
-    @State private var headerHovered = false
+    @State private var floatOffset: CGFloat = 0
+    @State private var floatScale: CGFloat = 1.0
+    @State private var glowOpacity: Double = 0.4
+    @State private var hasStartedFloating = false
+
+    private var activeLoops: [OpenLoopModel] {
+        loops.filter { !$0.isCompleted }.sorted { $0.importance < $1.importance }
+    }
+
+    // How many loops fit inside the ball (depends on size)
+    private var visibleLoopCount: Int {
+        if ballSize >= 220 { return 4 }
+        if ballSize >= 190 { return 3 }
+        if ballSize >= 170 { return 2 }
+        return 1
+    }
+
+    // Content inset — how much to inset text from ball edges to stay inside the circle
+    private var contentInset: CGFloat {
+        ballSize * 0.18
+    }
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Header — tappable for edit
-                HStack(spacing: 10) {
-                    // Icon
-                    ZStack {
-                        Circle()
-                            .fill(sphere.color.opacity(0.15))
-                            .frame(width: 44, height: 44)
+            ZStack {
+                // Outer glow halo
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [sphere.color.opacity(glowOpacity * 0.35), sphere.color.opacity(0.05), .clear],
+                            center: .center,
+                            startRadius: ballSize * 0.3,
+                            endRadius: ballSize * 0.75
+                        )
+                    )
+                    .frame(width: ballSize * 1.4, height: ballSize * 1.4)
+                    .allowsHitTesting(false)
 
+                // Main ball
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                sphere.color,
+                                sphere.color.opacity(0.7),
+                                sphere.color.opacity(0.85)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: ballSize, height: ballSize)
+                    .overlay(
+                        // Inner highlight (glass-like shine)
                         Circle()
                             .fill(
                                 LinearGradient(
-                                    colors: [sphere.color, sphere.color.opacity(0.7)],
+                                    colors: [.white.opacity(0.25), .clear, .clear],
                                     startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                                    endPoint: .center
                                 )
                             )
-                            .frame(width: 36, height: 36)
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.3), sphere.color.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(
+                        color: sphere.color.opacity(isHovered ? 0.6 : 0.35),
+                        radius: isHovered ? 20 : 10,
+                        x: 0,
+                        y: isHovered ? 8 : 5
+                    )
 
-                        Image(systemName: sphere.icon)
-                            .font(.system(size: 16))
-                            .foregroundColor(.white)
-                    }
+                // Content inside ball — clipped to circle
+                VStack(spacing: ballSize * 0.03) {
+                    // Icon
+                    Image(systemName: sphere.icon)
+                        .font(.system(size: ballSize * 0.16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.25), radius: 1, x: 0, y: 1)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 5) {
-                            Text(sphere.name)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(SpheresTheme.textPrimary)
+                    // Name
+                    Text(sphere.name)
+                        .font(.system(size: ballSize * 0.085, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
 
-                            Image(systemName: "pencil")
-                                .font(.system(size: 9))
-                                .foregroundColor(SpheresTheme.textTertiary.opacity(headerHovered ? 0.8 : 0))
-                        }
+                    // Loop count pill
+                    Text("\(activeLoops.count) open")
+                        .font(.system(size: ballSize * 0.055, weight: .medium))
+                        .foregroundColor(.white.opacity(0.75))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(.black.opacity(0.2))
+                        )
 
-                        HStack(spacing: 4) {
-                            Text("Rank \(sphere.priorityRank)")
-                                .font(.system(size: 11))
-                                .foregroundColor(SpheresTheme.textTertiary)
-
-                            Text("•")
-                                .font(.system(size: 11))
-                                .foregroundColor(SpheresTheme.textTertiary)
-
-                            Text("\(loops.count) open")
-                                .font(.system(size: 11))
-                                .foregroundColor(SpheresTheme.textTertiary)
-                        }
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11))
-                        .foregroundColor(SpheresTheme.textTertiary)
-                        .opacity(isHovered ? 1 : 0.5)
-                }
-                .padding(6)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(headerHovered ? sphere.color.opacity(0.06) : Color.clear)
-                )
-                .contentShape(Rectangle())
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) { headerHovered = hovering }
-                }
-                .onTapGesture {
-                    onEdit?()
-                }
-
-                // Scrollable Loop Preview (only active loops)
-                if !loops.filter({ !$0.isCompleted }).isEmpty {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(loops.filter { !$0.isCompleted }.sorted { $0.importance < $1.importance }) { loop in
-                                HStack(alignment: .top, spacing: 8) {
-                                    // Bullet in sphere color
+                    // Loop previews inside the ball
+                    if !activeLoops.isEmpty {
+                        VStack(alignment: .leading, spacing: ballSize * 0.02) {
+                            ForEach(activeLoops.prefix(visibleLoopCount)) { loop in
+                                HStack(spacing: 4) {
                                     Circle()
-                                        .fill(sphere.color.opacity(0.5))
-                                        .frame(width: 5, height: 5)
-                                        .padding(.top, 6)
-
+                                        .fill(.white.opacity(0.5))
+                                        .frame(width: 3, height: 3)
                                     Text(loop.content)
-                                        .font(.system(size: 13))
-                                        .foregroundColor(SpheresTheme.textSecondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-
-                                    Spacer()
-
-                                    // Progress pie
-                                    MiniProgressPie(progress: loop.progress, color: sphere.color)
-                                        .frame(width: 18, height: 18)
-
-                                    // Priority number
-                                    Text("\(loop.importance)")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .foregroundColor(SpheresTheme.textTertiary)
+                                        .font(.system(size: ballSize * 0.052))
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .lineLimit(1)
                                 }
                             }
+                            if activeLoops.count > visibleLoopCount {
+                                Text("+\(activeLoops.count - visibleLoopCount) more")
+                                    .font(.system(size: ballSize * 0.045))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
                         }
+                        .padding(.top, ballSize * 0.01)
                     }
                 }
-
-                Spacer(minLength: 0)
-
-                // Quick View Button
-                if isHovered {
-                    Button(action: {
-                        onQuickView()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "eye")
-                                .font(.system(size: 9))
-                            Text("Quick View")
-                                .font(.system(size: 10, weight: .medium))
-                        }
-                        .foregroundColor(SpheresTheme.textSecondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(SpheresTheme.surfaceHover)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.opacity)
-                }
+                .frame(width: ballSize - contentInset * 2)
+                .clipShape(Circle())
             }
-            .padding(14)
-            .frame(height: 300)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(SpheresTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isHovered ? sphere.color.opacity(0.3) : SpheresTheme.border, lineWidth: 1)
-                    )
-            )
+            .scaleEffect(isHovered ? 1.08 : floatScale)
+            .offset(y: isHovered ? -4 : floatOffset)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
                 isHovered = hovering
+                hoveredSphereId = hovering ? sphere.id : nil
             }
         }
+        .contextMenu {
+            Button(action: { onEdit?() }) {
+                Label("Edit Sphere", systemImage: "pencil")
+            }
+            Button(action: { onQuickView() }) {
+                Label("Quick View", systemImage: "eye")
+            }
+            Divider()
+            Button(role: .destructive, action: { onDelete?() }) {
+                Label("Delete Sphere", systemImage: "trash")
+            }
+        }
+        .onAppear { startIdleAnimations() }
     }
 
-    private func priorityColor(_ priority: Int) -> Color {
-        switch priority {
-        case 1: return .red
-        case 2: return .orange
-        case 3: return .yellow
-        case 4: return .green
-        default: return SpheresTheme.textTertiary
+    // MARK: - Idle Float Animations
+    private func startIdleAnimations() {
+        guard !hasStartedFloating else { return }
+        hasStartedFloating = true
+
+        let rankOffset = Double(sphere.priorityRank)
+
+        withAnimation(
+            .easeInOut(duration: 3.0 + rankOffset * 0.4)
+            .repeatForever(autoreverses: true)
+        ) {
+            floatOffset = 7
+        }
+
+        withAnimation(
+            .easeInOut(duration: 2.6 + rankOffset * 0.25)
+            .repeatForever(autoreverses: true)
+        ) {
+            floatScale = 1.025
+        }
+
+        withAnimation(
+            .easeInOut(duration: 2.0 + rankOffset * 0.2)
+            .repeatForever(autoreverses: true)
+        ) {
+            glowOpacity = 0.7
         }
     }
 }

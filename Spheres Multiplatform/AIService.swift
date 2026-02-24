@@ -59,6 +59,75 @@ class AIService: ObservableObject {
         }
     }
 
+    // MARK: - Process Open Loop (AI-powered task creation)
+    struct ProcessedLoop {
+        let content: String       // Cleaned task description
+        let sphereName: String    // Best-fit sphere name
+        let priority: Int         // 1-5 (1 = highest)
+        let estimatedMinutes: Int? // nil if not determinable
+    }
+
+    func processOpenLoop(_ userInput: String, spheres: [SphereModel]) async -> ProcessedLoop? {
+        guard hasAPIKey, !userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+
+        let sphereList = spheres.map { "- \($0.name): \($0.sphereDescription)" }.joined(separator: "\n")
+
+        let prompt = """
+        You are a task processing assistant for a life management app. The user has described a task in natural language. Extract structured data from it.
+
+        Available spheres (life areas):
+        \(sphereList)
+
+        User input: "\(userInput)"
+
+        Respond with EXACTLY this format (one field per line, nothing else):
+        TASK: <clean, actionable task description>
+        SPHERE: <best matching sphere name from the list above>
+        PRIORITY: <1-5 where 1=critical/urgent, 2=high, 3=medium, 4=low, 5=someday>
+        MINUTES: <estimated minutes as a number, or 0 if unknown>
+
+        Guidelines:
+        - TASK should be a clear, concise action item (remove filler words, keep specifics)
+        - SPHERE must exactly match one of the sphere names listed above
+        - PRIORITY: if they say "urgent"/"ASAP" → 1, "important" → 2, no indication → 3, "when I get around to it" → 4, "maybe someday" → 5
+        - MINUTES: estimate realistically based on the task. Use 0 only if truly impossible to estimate.
+        """
+
+        do {
+            let response = try await sendMessage(prompt, maxTokens: 150)
+            return parseProcessedLoop(response)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func parseProcessedLoop(_ response: String) -> ProcessedLoop? {
+        var task: String?
+        var sphere: String?
+        var priority = 3
+        var minutes: Int? = nil
+
+        for line in response.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("TASK:") {
+                task = trimmed.replacingOccurrences(of: "TASK:", with: "").trimmingCharacters(in: .whitespaces)
+            } else if trimmed.hasPrefix("SPHERE:") {
+                sphere = trimmed.replacingOccurrences(of: "SPHERE:", with: "").trimmingCharacters(in: .whitespaces)
+            } else if trimmed.hasPrefix("PRIORITY:") {
+                let val = trimmed.replacingOccurrences(of: "PRIORITY:", with: "").trimmingCharacters(in: .whitespaces)
+                priority = Int(val) ?? 3
+            } else if trimmed.hasPrefix("MINUTES:") {
+                let val = trimmed.replacingOccurrences(of: "MINUTES:", with: "").trimmingCharacters(in: .whitespaces)
+                let parsed = Int(val) ?? 0
+                minutes = parsed > 0 ? parsed : nil
+            }
+        }
+
+        guard let t = task, let s = sphere else { return nil }
+        return ProcessedLoop(content: t, sphereName: s, priority: max(1, min(5, priority)), estimatedMinutes: minutes)
+    }
+
     // MARK: - Smart Resurfacing
     func getResurfacingSuggestions(loops: [OpenLoopModel], spheres: [SphereModel]) async -> [ResurfacingSuggestion] {
         guard hasAPIKey else { return generateLocalResurfacing(loops: loops) }
