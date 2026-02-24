@@ -32,3 +32,13 @@ secrets.plist
 
 # Claude Code local files
 .claude/
+
+# Personal files - not part of app
+Others- Career/
+ExportBlock-*/
+Readings Import.csv
+Screenshot *.png
+*.xlsx
+*.docx
+*.pptx
+~$*
