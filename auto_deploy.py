@@ -41,8 +41,7 @@ def main():
 
     message = (
         f"Auto-save: {timestamp} ({file_count} files)\n\n"
-        f"Session snapshot before context compaction.\n\n"
-        f"Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+        f"Session snapshot before context compaction."
     )
 
     # Commit

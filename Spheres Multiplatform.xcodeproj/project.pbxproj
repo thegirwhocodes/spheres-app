@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -191,6 +191,15 @@
 			path = "Spheres Multiplatform";
 			sourceTree = "<group>";
 		};
+		B1234567890ABCDEF1234566 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B1234567890ABCDEF1234565 /* Spheres Multiplatform.app */,
+				A2F45AFC2F385BEC00D32438 /* SpheresWidgetsExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		B1234567890ABCDEF12345E0 /* SourceAdapters */ = {
 			isa = PBXGroup;
 			children = (
@@ -202,15 +211,6 @@
 				B1234567890ABCDEF12345DB /* IMessageAdapter.swift */,
 			);
 			path = SourceAdapters;
-			sourceTree = "<group>";
-		};
-		B1234567890ABCDEF1234566 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				B1234567890ABCDEF1234565 /* Spheres Multiplatform.app */,
-				A2F45AFC2F385BEC00D32438 /* SpheresWidgetsExtension.appex */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

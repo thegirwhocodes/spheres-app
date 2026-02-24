@@ -252,15 +252,17 @@ struct EnhancedSignInStatus: View {
     
     var body: some View {
         Button(action: { showingDetailPopover = true }) {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 // Animated status icon
                 statusIconView
-                
+
                 // Text status (shows on hover or always for important states)
                 if isHovering || !cloudKit.isSignedIn {
                     Text(statusText)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(statusColor)
+                        .lineLimit(1)
+                        .fixedSize()
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
             }

@@ -27,7 +27,7 @@ struct SpheresApp: App {
             // Use CloudKit configuration
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
-                cloudKitDatabase: .private("iCloud.sunc")
+                cloudKitDatabase: .private("iCloud.com.naomiivie.SpheresMultiplatform")
             )
 
             do {

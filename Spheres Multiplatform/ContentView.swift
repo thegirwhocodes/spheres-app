@@ -462,13 +462,10 @@ struct SidebarView: View {
 
             Spacer()
 
-            // Sync Status Indicator
-            HStack {
-                EnhancedSignInStatus()
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            // Sync Status + Update (combined)
+            SidebarStatusBar()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
         .frame(width: 200)
         .background(
@@ -476,6 +473,113 @@ struct SidebarView: View {
                 .ignoresSafeArea()
         )
         .compositingGroup()
+    }
+}
+
+// MARK: - Sidebar Status Bar (Sign-in + Update combined)
+struct SidebarStatusBar: View {
+    @StateObject private var cloudKit = CloudKitService.shared
+    @State private var isHovering = false
+    @State private var isUpdating = false
+    @State private var rotation: Double = 0
+    @State private var showingSignInPopover = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Sign-in icon (always visible, clickable)
+            Button(action: { showingSignInPopover = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: cloudKit.isSignedIn ? "checkmark.circle.fill" : "person.crop.circle.badge.questionmark")
+                        .font(.system(size: 14))
+                        .foregroundColor(cloudKit.isSignedIn ? .green : .orange)
+
+                    if isHovering && !isUpdating {
+                        Text(cloudKit.isSignedIn ? "Signed In" : "Sign In")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(cloudKit.isSignedIn ? .green : .orange)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .transition(.opacity.combined(with: .move(edge: .trailing)))
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showingSignInPopover, arrowEdge: .bottom) {
+                SignInDetailPopover()
+            }
+
+            // Divider dot (only on hover)
+            if isHovering || isUpdating {
+                Circle()
+                    .fill(SpheresTheme.textMuted.opacity(0.4))
+                    .frame(width: 3, height: 3)
+                    .padding(.horizontal, 6)
+                    .transition(.opacity)
+            }
+
+            // Update button (slides out on hover)
+            if isHovering || isUpdating {
+                Button(action: { runUpdate() }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 12))
+                            .rotationEffect(.degrees(rotation))
+                        Text(isUpdating ? "Updating..." : "Update")
+                            .font(.system(size: 11, weight: .medium))
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                    .foregroundColor(isUpdating ? .blue : .cyan)
+                }
+                .buttonStyle(.plain)
+                .disabled(isUpdating)
+                .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(cloudKit.isSignedIn ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                .overlay(
+                    Capsule()
+                        .stroke((cloudKit.isSignedIn ? Color.green : Color.orange).opacity(0.3), lineWidth: 1)
+                )
+        )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovering = hovering
+            }
+        }
+        .onAppear {
+            cloudKit.checkAccountStatus()
+        }
+    }
+
+    private func runUpdate() {
+        isUpdating = true
+        withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
+            rotation = 360
+        }
+
+        Task.detached {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+            process.arguments = [
+                "/Users/naomiivie/Downloads/App/Spheres Mac - Version 1.0 Dec 2025/auto_update.py",
+                "--force"
+            ]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            try? process.run()
+            process.waitUntilExit()
+
+            await MainActor.run {
+                withAnimation(.default) { rotation = 0 }
+                isUpdating = false
+            }
+        }
     }
 }
 
