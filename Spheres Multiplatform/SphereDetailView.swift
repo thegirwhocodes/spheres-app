@@ -166,12 +166,19 @@ struct SphereFullPageView: View {
                 Button(action: { showingAddLoop = true }) {
                     HStack(spacing: 6) {
                         Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold))
                         Text("Add Loop")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                     }
+                    .foregroundColor(SpheresTheme.accent)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(SpheresTheme.accent.opacity(0.12))
+                    )
                 }
-                .buttonStyle(AccentButtonStyle())
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
