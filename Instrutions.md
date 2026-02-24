@@ -26,19 +26,18 @@
 23. AI processes whatever the user types in the box and puts it as a sphere with the appropriate priority, etc. but dialougue tells user their descirption should include that info
 24. Make the loop options (priority adn estimated time sblte - ): essentially asking for all this info increases friction when the user is just tryong to quickly brain dump so they don't forget
 25. Let open loops alos search/ look for a due date, so the smart scheduler can look for a time within that - if it can't find a time that will actually be optimal for the user's energy levels and also the other things on theri calendar, then let it tell the user and they cna click yes or no fo schedulimg even in the stressful time
-26. Resize Add loop button and make the colour way subtler and also for edit
-27. clicking should automatically open to edit the loop - if youhave to reset/redo the style of loops, please do
-28. Swipe left to delete but still have delter buttom there
-29. elt the spheres be way more rounded
-30. Smart Calendar switchoverer (let it only update on sphere's calendar, but let it
-31. AI suggestion box just dissappears once you click it
-32. Stress test the app for 3 very specific use cases and
-33. A complete icon cusotmization plan/ ability
-34. Put in long term plan - to create a google cloud account for spheres so billing can happen sperately/ somewhere team memebers can sign into
-35. put in longoterm plan - Oatuth stuff change to an actual email (ofor ) and change client id inapp
-36. have the values quiz come with subscriptisomn/pro plan - idk, for smart schedular to do that or no, what woudl be best/better for custoemr catching/retention?
-37. Work on the app to school app
-38. Use google cloud or build a cloud backend that allows the user to
-39. AI suggestion annoying if I already closed it once - work on fleshing out that deature
-40. Email verification process for non-test users
-41.
+26. clicking should automatically open to edit the loop - if youhave to reset/redo the style of loops, please do
+27. Swipe left to delete but still have delter buttom there
+28. elt the spheres be way more rounded
+29. Smart Calendar switchoverer (let it only update on sphere's calendar, but let it
+30. AI suggestion box just dissappears once you click it
+31. Stress test the app for 3 very specific use cases and
+32. A complete icon cusotmization plan/ ability
+33. Put in long term plan - to create a google cloud account for spheres so billing can happen sperately/ somewhere team memebers can sign into
+34. put in longoterm plan - Oatuth stuff change to an actual email (ofor ) and change client id inapp
+35. have the values quiz come with subscriptisomn/pro plan - idk, for smart schedular to do that or no, what woudl be best/better for custoemr catching/retention?
+36. Work on the app to school app
+37. Use google cloud or build a cloud backend that allows the user to
+38. AI suggestion annoying if I already closed it once - work on fleshing out that deature
+39. Email verification process for non-test users
+40.

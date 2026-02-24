@@ -126,11 +126,11 @@ struct SmallAccentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.white)
+            .foregroundColor(SpheresTheme.accent)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(SpheresTheme.accent))
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .background(RoundedRectangle(cornerRadius: 6).fill(SpheresTheme.accent.opacity(0.12)))
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
     }
 }
 
@@ -141,7 +141,7 @@ struct SmallGhostButtonStyle: ButtonStyle {
             .foregroundColor(SpheresTheme.textSecondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).stroke(SpheresTheme.border))
+            .background(RoundedRectangle(cornerRadius: 6).fill(SpheresTheme.textSecondary.opacity(0.08)))
             .opacity(configuration.isPressed ? 0.6 : 1.0)
     }
 }
