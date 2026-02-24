@@ -28,6 +28,7 @@ struct SmartSetupOnboardingFlow: View {
     @Binding var isPresented: Bool
     @Environment(\.modelContext) private var modelContext
     @StateObject private var setupService = SmartSetupService.shared
+    @StateObject private var googleAuth = GoogleAuthService.shared
     @State private var currentStep: SmartSetupStep = .welcome
     @State private var userName: String = ""
     @AppStorage("claudeAPIKey") private var apiKey: String = ""
@@ -200,6 +201,21 @@ struct SmartSetupOnboardingFlow: View {
                     title: "Calendar",
                     subtitle: "Events and schedules from the last 30 days",
                     isEnabled: $setupService.calendarEnabled
+                )
+
+                // Gmail - special card with Connect button
+                GmailToggleCard(
+                    isEnabled: Binding(
+                        get: { setupService.enabledSources.contains(.gmail) },
+                        set: { enabled in
+                            if enabled {
+                                setupService.enabledSources.insert(.gmail)
+                            } else {
+                                setupService.enabledSources.remove(.gmail)
+                            }
+                        }
+                    ),
+                    googleAuth: googleAuth
                 )
 
                 ForEach(availableSources, id: \.self) { source in
@@ -546,6 +562,76 @@ struct SourceToggleCard: View {
             }
 
             Spacer()
+
+            Toggle("", isOn: $isEnabled)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isEnabled ? SpheresTheme.accent.opacity(0.05) : SpheresTheme.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isEnabled ? SpheresTheme.accent.opacity(0.2) : SpheresTheme.border, lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Gmail Toggle Card
+
+struct GmailToggleCard: View {
+    @Binding var isEnabled: Bool
+    @ObservedObject var googleAuth: GoogleAuthService
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "envelope.fill")
+                .font(.system(size: 20))
+                .foregroundColor(isEnabled ? SpheresTheme.accent : SpheresTheme.textTertiary)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Gmail")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(SpheresTheme.textPrimary)
+
+                if googleAuth.isSignedIn, let email = googleAuth.userEmail {
+                    Text(email)
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                } else {
+                    Text("Scan emails for action items")
+                        .font(.system(size: 11))
+                        .foregroundColor(SpheresTheme.textTertiary)
+                }
+            }
+
+            Spacer()
+
+            if !googleAuth.isSignedIn {
+                Button(action: {
+                    Task {
+                        do {
+                            try await googleAuth.signIn()
+                            isEnabled = true
+                        } catch {
+                            print("DEBUG: Gmail sign-in failed: \(error)")
+                        }
+                    }
+                }) {
+                    Text(googleAuth.isAuthenticating ? "Connecting..." : "Connect")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(SpheresTheme.accent))
+                }
+                .buttonStyle(.plain)
+                .disabled(googleAuth.isAuthenticating)
+            }
 
             Toggle("", isOn: $isEnabled)
                 .toggleStyle(.switch)

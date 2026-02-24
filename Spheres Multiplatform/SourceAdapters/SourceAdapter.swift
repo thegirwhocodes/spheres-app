@@ -38,6 +38,7 @@ struct ExtractedTask: Identifiable {
 enum TaskSource: String, Codable {
     case reminders = "Reminders"
     case appleMail = "Apple Mail"
+    case gmail = "Gmail"
     case notes = "Notes"
     case voiceMemos = "Voice Memos"
     case iMessage = "iMessage"
@@ -48,6 +49,7 @@ enum TaskSource: String, Codable {
         switch self {
         case .reminders: return "checkmark.circle.fill"
         case .appleMail: return "envelope.fill"
+        case .gmail: return "envelope.fill"
         case .notes: return "note.text"
         case .voiceMemos: return "waveform"
         case .iMessage: return "message.fill"
@@ -60,6 +62,7 @@ enum TaskSource: String, Codable {
         switch self {
         case .reminders: return "orange"
         case .appleMail: return "blue"
+        case .gmail: return "red"
         case .notes: return "yellow"
         case .voiceMemos: return "red"
         case .iMessage: return "green"
@@ -72,6 +75,7 @@ enum TaskSource: String, Codable {
         switch self {
         case .reminders: return true
         case .appleMail: return true  // Automation permission
+        case .gmail: return true      // Google OAuth
         case .notes: return true      // Automation permission
         case .voiceMemos: return true // File access
         case .iMessage: return true   // Full Disk Access (App Store blocked)
@@ -154,6 +158,7 @@ class SourceAdapterManager: ObservableObject {
         // Register adapters
         registerAdapter(RemindersAdapter())
         registerAdapter(AppleMailAdapter())
+        registerAdapter(GmailAdapter())
         registerAdapter(NotesAdapter())
         registerAdapter(VoiceMemosAdapter())
         registerAdapter(IMessageAdapter())  // Requires Full Disk Access - only works with direct distribution
@@ -217,6 +222,8 @@ class SourceAdapterManager: ObservableObject {
             return UserDefaults.standard.bool(forKey: "permission.reminders")
         case .appleMail:
             return UserDefaults.standard.bool(forKey: "permission.gmail")
+        case .gmail:
+            return GoogleAuthService.shared.isSignedIn
         case .notes:
             return UserDefaults.standard.bool(forKey: "permission.notes")
         case .voiceMemos:

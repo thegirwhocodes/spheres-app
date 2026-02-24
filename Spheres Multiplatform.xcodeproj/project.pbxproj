@@ -43,6 +43,8 @@
 		B1234567890ABCDEF12345E1 /* AdaptiveProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345E2 /* AdaptiveProfileService.swift */; };
 		B1234567890ABCDEF12345E3 /* AdaptiveTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345E4 /* AdaptiveTracking.swift */; };
 		B1234567890ABCDEF12345E5 /* ProfileInsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1234567890ABCDEF12345E6 /* ProfileInsightsView.swift */; };
+		F5B7765EE895420999A00618 /* GoogleAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160E7C155B6D473EAAB5177F /* GoogleAuthService.swift */; };
+		817113A0847A40EDAF4928FB /* GmailAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48E179418D243688691AE52 /* GmailAdapter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,6 +109,8 @@
 		B1234567890ABCDEF12345E2 /* AdaptiveProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveProfileService.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345E4 /* AdaptiveTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveTracking.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF12345E6 /* ProfileInsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileInsightsView.swift; sourceTree = "<group>"; };
+		160E7C155B6D473EAAB5177F /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
+		F48E179418D243688691AE52 /* GmailAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAdapter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -182,6 +186,7 @@
 				B1234567890ABCDEF12345B5 /* SmartScheduleView.swift */,
 				B1234567890ABCDEF12345E8 /* SmartSetupService.swift */,
 				B1234567890ABCDEF12345EA /* SmartSetupOnboardingFlow.swift */,
+				160E7C155B6D473EAAB5177F /* GoogleAuthService.swift */,
 				B1234567890ABCDEF12345C1 /* UserProfileModel.swift */,
 				B1234567890ABCDEF12345C3 /* MemoryService.swift */,
 				B1234567890ABCDEF12345C5 /* PersonalizationService.swift */,
@@ -215,6 +220,7 @@
 				B1234567890ABCDEF12345D7 /* NotesAdapter.swift */,
 				B1234567890ABCDEF12345D9 /* VoiceMemosAdapter.swift */,
 				B1234567890ABCDEF12345DB /* IMessageAdapter.swift */,
+				F48E179418D243688691AE52 /* GmailAdapter.swift */,
 			);
 			path = SourceAdapters;
 			sourceTree = "<group>";
@@ -323,7 +329,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
+			
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B1234567890ABCDEF1234561 /* Sources */ = {
@@ -347,6 +354,8 @@
 				B1234567890ABCDEF12345B4 /* SmartScheduleView.swift in Sources */,
 				B1234567890ABCDEF12345E7 /* SmartSetupService.swift in Sources */,
 				B1234567890ABCDEF12345E9 /* SmartSetupOnboardingFlow.swift in Sources */,
+				F5B7765EE895420999A00618 /* GoogleAuthService.swift in Sources */,
+				817113A0847A40EDAF4928FB /* GmailAdapter.swift in Sources */,
 				B1234567890ABCDEF12345C0 /* UserProfileModel.swift in Sources */,
 				B1234567890ABCDEF12345C2 /* MemoryService.swift in Sources */,
 				B1234567890ABCDEF12345C4 /* PersonalizationService.swift in Sources */,

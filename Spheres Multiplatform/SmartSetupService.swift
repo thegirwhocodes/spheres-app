@@ -134,7 +134,7 @@ class SmartSetupService: ObservableObject {
     @Published var completedSources: [String] = []
 
     // Configuration
-    @Published var enabledSources: Set<TaskSource> = [.reminders, .notes, .appleMail]
+    @Published var enabledSources: Set<TaskSource> = [.reminders, .notes, .gmail]
     @Published var calendarEnabled: Bool = true
 
     private let adapterManager = SourceAdapterManager.shared
@@ -351,6 +351,7 @@ class SmartSetupService: ObservableObject {
         switch source {
         case .reminders: return RemindersAdapter()
         case .appleMail: return AppleMailAdapter()
+        case .gmail: return GmailAdapter()
         case .notes: return NotesAdapter()
         case .voiceMemos: return VoiceMemosAdapter()
         case .iMessage: return IMessageAdapter()
@@ -362,6 +363,7 @@ class SmartSetupService: ObservableObject {
         switch source {
         case .reminders: UserDefaults.standard.set(true, forKey: "permission.reminders")
         case .appleMail: UserDefaults.standard.set(true, forKey: "permission.gmail")
+        case .gmail: break // Gmail uses OAuth, no UserDefaults flag needed
         case .notes: UserDefaults.standard.set(true, forKey: "permission.notes")
         case .voiceMemos: UserDefaults.standard.set(true, forKey: "permission.voiceMemos")
         case .iMessage: UserDefaults.standard.set(true, forKey: "permission.imessage")

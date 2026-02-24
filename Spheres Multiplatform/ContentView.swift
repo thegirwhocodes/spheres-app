@@ -5413,6 +5413,72 @@ struct EditLoopSheet: View {
     }
 }
 
+// MARK: - Google Account Settings Section
+
+struct GoogleAccountSettingsSection: View {
+    @StateObject private var googleAuth = GoogleAuthService.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("GOOGLE ACCOUNT")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(SpheresTheme.textTertiary)
+                .tracking(1)
+
+            VStack(alignment: .leading, spacing: 12) {
+                if googleAuth.isSignedIn {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Connected")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.green)
+                            if let email = googleAuth.userEmail {
+                                Text(email)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(SpheresTheme.textSecondary)
+                            }
+                        }
+                        Spacer()
+                        Button("Disconnect") {
+                            googleAuth.signOut()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.red.opacity(0.8))
+                    }
+                } else {
+                    Text("Connect your Google account to scan Gmail for tasks and action items.")
+                        .font(.system(size: 13))
+                        .foregroundColor(SpheresTheme.textSecondary)
+
+                    Button(action: {
+                        Task {
+                            try? await googleAuth.signIn()
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "envelope.fill")
+                            Text(googleAuth.isAuthenticating ? "Connecting..." : "Connect Gmail")
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(SpheresTheme.accent))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(googleAuth.isAuthenticating)
+                }
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 12).fill(SpheresTheme.surface))
+        }
+    }
+}
+
 // MARK: - Settings View
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -5521,6 +5587,9 @@ struct SettingsView: View {
                     .padding(16)
                     .background(RoundedRectangle(cornerRadius: 12).fill(SpheresTheme.surface))
                 }
+
+                // Google Account
+                GoogleAccountSettingsSection()
 
                 // Open Loop Sources (Email, Messages, Recordings)
                 VStack(alignment: .leading, spacing: 16) {
