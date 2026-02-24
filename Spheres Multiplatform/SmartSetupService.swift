@@ -141,7 +141,22 @@ class SmartSetupService: ObservableObject {
     private let calendarService = CalendarService.shared
     private let aiService = AIService.shared
 
+    // Store for fallback use
+    private var lastCalendarSummary: String = ""
+    private var lastExtractedTasks: [ExtractedTask] = []
+
     private init() {}
+
+    /// Reset state so the Smart Setup can be re-run from Settings
+    func resetForRerun() {
+        scanPhase = .idle
+        scanProgress = 0.0
+        aiGeneratedSetup = nil
+        scanError = nil
+        completedSources = []
+        lastCalendarSummary = ""
+        lastExtractedTasks = []
+    }
 
     // MARK: - Full Scan Pipeline
 
@@ -220,14 +235,23 @@ class SmartSetupService: ObservableObject {
         scanPhase = .aggregating
         currentSourceLabel = "Preparing data..."
 
+        // Store for fallback use
+        lastExtractedTasks = allTasks
+        lastCalendarSummary = calendarSummary
+
         let payload = buildAIPayload(tasks: allTasks, calendarSummary: calendarSummary)
         currentStep += 1
         scanProgress = currentStep / totalSteps
 
+        print("DEBUG: SmartSetup scan results - \(allTasks.count) tasks, calendar summary length: \(calendarSummary.count)")
+
         // Check if we have enough data
         if allTasks.isEmpty && calendarSummary.isEmpty {
-            scanPhase = .failed("notEnoughData")
-            scanError = "We didn't find enough data to generate personalized spheres. You can set up spheres manually."
+            // No data at all - create starter spheres so the user isn't left with nothing
+            print("DEBUG: SmartSetup no data found, creating starter spheres")
+            aiGeneratedSetup = buildStarterSetup()
+            scanPhase = .complete
+            scanProgress = 1.0
             return
         }
 
@@ -240,8 +264,10 @@ class SmartSetupService: ObservableObject {
                 payload,
                 systemPrompt: smartSetupSystemPrompt,
                 maxTokens: 3000,
-                model: "claude-sonnet-4-20250514"
+                model: "claude-sonnet-4-6"
             )
+
+            print("DEBUG: SmartSetup AI response length: \(response.count) chars")
 
             // Parse JSON response
             if let setup = parseAIResponse(response) {
@@ -256,7 +282,7 @@ class SmartSetupService: ObservableObject {
                     payload,
                     systemPrompt: smartSetupSystemPromptSimple,
                     maxTokens: 3000,
-                    model: "claude-sonnet-4-20250514"
+                    model: "claude-sonnet-4-6"
                 )
 
                 if let retrySetup = parseAIResponse(retryResponse) {
@@ -264,30 +290,30 @@ class SmartSetupService: ObservableObject {
                     scanPhase = .complete
                     scanProgress = 1.0
                 } else {
-                    // Fall back to keyword-based grouping
-                    aiGeneratedSetup = buildFallbackSetup(from: allTasks)
+                    // Fall back to keyword-based grouping, then starter spheres
+                    print("DEBUG: SmartSetup both AI attempts failed, using fallback")
+                    aiGeneratedSetup = buildFallbackSetup(from: allTasks) ?? buildStarterSetup()
                     scanPhase = .complete
                     scanProgress = 1.0
                 }
             }
         } catch {
             print("DEBUG: SmartSetup AI error: \(error)")
-            // Fall back to keyword-based grouping
-            aiGeneratedSetup = buildFallbackSetup(from: allTasks)
-            if aiGeneratedSetup != nil {
-                scanPhase = .complete
-                scanProgress = 1.0
-            } else {
-                scanPhase = .failed(error.localizedDescription)
-                scanError = "AI analysis failed: \(error.localizedDescription)"
-            }
+            // Fall back to keyword-based grouping, then to starter spheres
+            aiGeneratedSetup = buildFallbackSetup(from: allTasks) ?? buildStarterSetup()
+            scanPhase = .complete
+            scanProgress = 1.0
         }
     }
 
     // MARK: - Materialize (Create actual spheres + loops)
 
     func materialize(_ setup: AIGeneratedSetup, modelContext: ModelContext) {
-        for sphere in setup.spheres where sphere.isEnabled {
+        let enabledSpheres = setup.spheres.filter { $0.isEnabled }
+        print("DEBUG: SmartSetup materializing \(enabledSpheres.count) spheres (of \(setup.spheres.count) total)")
+
+        for sphere in enabledSpheres {
+            print("DEBUG: SmartSetup creating sphere: '\(sphere.name)' with \(sphere.tasks.filter { $0.isEnabled }.count) tasks")
             let sphereModel = SphereModel(
                 name: sphere.name,
                 icon: sphere.icon,
@@ -531,6 +557,31 @@ class SmartSetupService: ObservableObject {
         }
 
         return AIGeneratedSetup(spheres: spheres, insights: "Organized based on task categories found in your data.", suggestedValues: [])
+    }
+
+    /// Creates a sensible starter setup when AI and task-based fallback both fail
+    private func buildStarterSetup() -> AIGeneratedSetup {
+        let spheres: [AIGeneratedSetup.GeneratedSphere] = [
+            .init(name: "Work & Projects", icon: "briefcase.fill", description: "Your professional tasks and projects",
+                  color: .init(r: 0.2, g: 0.5, b: 1.0), priorityRank: 1, tasks: [
+                    .init(content: "Review this week's priorities", importance: 2, source: "Starter")
+                  ]),
+            .init(name: "Personal", icon: "heart.fill", description: "Health, family, and personal goals",
+                  color: .init(r: 1.0, g: 0.4, b: 0.6), priorityRank: 2, tasks: [
+                    .init(content: "Plan your week", importance: 3, source: "Starter")
+                  ]),
+            .init(name: "Learning", icon: "book.fill", description: "Things to learn and explore",
+                  color: .init(r: 0.2, g: 0.78, b: 0.35), priorityRank: 3, tasks: [
+                    .init(content: "Add your first learning goal", importance: 3, source: "Starter")
+                  ]),
+            .init(name: "Finances", icon: "dollarsign.circle.fill", description: "Budgets, bills, and financial goals",
+                  color: .init(r: 0.95, g: 0.8, b: 0.2), priorityRank: 4, tasks: []),
+        ]
+        return AIGeneratedSetup(
+            spheres: spheres,
+            insights: "We created starter spheres for you. Rename them, add your own, or re-run Smart Setup from Settings once you've granted permissions.",
+            suggestedValues: []
+        )
     }
 
     private func categorizeByKeywords(_ content: String) -> String {

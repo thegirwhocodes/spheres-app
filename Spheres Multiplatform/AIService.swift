@@ -495,7 +495,7 @@ class AIService: ObservableObject {
     }
 
     /// Send a message with a specific model and optional system prompt (used by Smart Setup)
-    func sendStructuredMessage(_ content: String, systemPrompt: String? = nil, maxTokens: Int, model: String = "claude-sonnet-4-20250514") async throws -> String {
+    func sendStructuredMessage(_ content: String, systemPrompt: String? = nil, maxTokens: Int, model: String = "claude-sonnet-4-6") async throws -> String {
         try await sendMessage(content, maxTokens: maxTokens, model: model, systemPrompt: systemPrompt)
     }
 

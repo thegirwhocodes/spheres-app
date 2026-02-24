@@ -465,7 +465,12 @@ struct SmartSetupOnboardingFlow: View {
     // MARK: - Finish Actions
 
     private func finishSmartSetup() {
-        guard let setup = setupService.aiGeneratedSetup else { return }
+        guard let setup = setupService.aiGeneratedSetup else {
+            print("DEBUG: finishSmartSetup called but aiGeneratedSetup is nil!")
+            return
+        }
+
+        print("DEBUG: finishSmartSetup starting with \(setup.spheres.count) spheres (\(setup.spheres.filter { $0.isEnabled }.count) enabled)")
 
         // Create user profile
         let profile = DataManager.shared.createUserProfile(modelContext: modelContext)
@@ -492,7 +497,12 @@ struct SmartSetupOnboardingFlow: View {
         UserDefaults.standard.set(true, forKey: "permission.calendar")
         UserDefaults.standard.set(true, forKey: "permission.aiProcessing")
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+            print("DEBUG: finishSmartSetup saved successfully")
+        } catch {
+            print("DEBUG: finishSmartSetup save error: \(error)")
+        }
         isPresented = false
     }
 
