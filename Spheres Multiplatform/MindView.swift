@@ -357,3 +357,9 @@ struct ChatBubble: View {
         }
     }
 }
+
+#Preview("Mind View") {
+    MindView()
+        .modelContainer(previewContainer)
+        .frame(width: 700, height: 500)
+}

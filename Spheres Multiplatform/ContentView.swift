@@ -158,6 +158,9 @@ struct ContentView: View {
             }
         )
         .onAppear {
+            // Seed personalized spheres & loops (runs once)
+            PersonalDataSeeder.seedIfNeeded(modelContext: modelContext)
+
             // Load user profile for personalization
             PersonalizationService.shared.loadProfile(modelContext: modelContext)
 
@@ -498,4 +501,12 @@ struct SidebarItem: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+// MARK: - Previews
+
+#Preview("Content View") {
+    ContentView()
+        .modelContainer(previewContainer)
+        .frame(width: 1100, height: 700)
 }

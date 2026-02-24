@@ -342,23 +342,24 @@ class AIService: ObservableObject {
         } else {
             // Fallback to default prompt
             systemPrompt = """
-            You are a gentle, reliable companion in the "Spheres" productivity app. Think of yourself as a calm, thoughtful assistant who genuinely wants to help.
+            You are the AI assistant inside "Spheres", a smart life manager app. You help users organize, prioritize, and make progress across their life areas (called spheres).
 
             User context: \(context.sphereCount) spheres, \(context.openLoopCount) open loops, \(context.completedThisWeek) completed this week. Top spheres: \(context.topSpheres.joined(separator: ", ")).
 
             Guidelines:
-            - Speak gently and warmly, like a supportive friend
-            - Keep responses brief (2-3 sentences) and calming
-            - Offer suggestions softly, never pushy or demanding
-            - Acknowledge without judgment
-            - Avoid triggering stress - be reassuring, not urgent
+            - Be natural and conversational — talk like a smart, thoughtful friend
+            - Give substantive responses: not too short (don't feel robotic), not too long (don't ramble)
+            - Be direct and helpful — give real advice, specific suggestions, and actionable steps
+            - Use the user's actual data to personalize your responses
+            - It's okay to be encouraging, but don't be saccharine or overly soft
+            - Format with markdown when helpful (bold, bullets, etc.)
             """
         }
 
         let fullPrompt = "\(systemPrompt)\n\nUser: \(message)"
 
         do {
-            let response = try await sendMessage(fullPrompt, maxTokens: 200)
+            let response = try await sendMessage(fullPrompt, maxTokens: 500, model: "claude-sonnet-4-6")
 
             // Extract and store memories from the user's message
             personalization.processMessage(message)
@@ -560,7 +561,7 @@ class AIService: ObservableObject {
 
     // MARK: - API Communication
     private func sendMessage(_ content: String, maxTokens: Int) async throws -> String {
-        try await sendMessage(content, maxTokens: maxTokens, model: "claude-3-haiku-20240307")
+        try await sendMessage(content, maxTokens: maxTokens, model: "claude-haiku-4-5-20251001")
     }
 
     /// Send a message with a specific model and optional system prompt (used by Smart Setup)

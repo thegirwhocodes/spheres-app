@@ -450,3 +450,9 @@ struct QuickCaptureOverlay: View {
         }
     }
 }
+
+#Preview("Quick Capture") {
+    QuickCaptureOverlay(isPresented: .constant(true))
+        .modelContainer(previewContainer)
+        .frame(width: 500, height: 400)
+}

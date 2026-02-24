@@ -515,7 +515,7 @@ struct DetailLoopCard: View {
                                 .font(.system(size: 10, weight: .medium))
                         }
                         .foregroundColor(.white)
-                        .frame(width: 70, height: .infinity)
+                        .frame(width: 70)
                     }
                     .buttonStyle(.plain)
                 }
@@ -1126,6 +1126,12 @@ struct EditLoopSheet: View {
                                     .fill(SpheresTheme.background)
                                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(SpheresTheme.border))
                             )
+                            .onSubmit {
+                                if !content.isEmpty {
+                                    saveChanges()
+                                    isPresented = false
+                                }
+                            }
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -1426,4 +1432,34 @@ struct EditLoopSheet: View {
             )
         }
     }
+}
+
+// MARK: - Previews
+
+#Preview("Detail Loop Card") {
+    let sphere = SphereModel(name: "Health", icon: "heart.fill", color: .red, priorityRank: 1)
+    let loop = OpenLoopModel(content: "Morning run - 30 minutes", sphere: sphere, importance: 2, progress: 0.6, estimatedMinutes: 30, isHabit: true)
+    DetailLoopCard(loop: loop, sphereColor: .red, allSpheres: [sphere])
+        .modelContainer(previewContainer)
+        .frame(width: 500)
+        .padding()
+        .background(SpheresTheme.background)
+}
+
+#Preview("Add Loop Sheet") {
+    AddLoopSheet(
+        isPresented: .constant(true),
+        sphere: SphereModel(name: "Career", icon: "briefcase.fill", color: .blue, priorityRank: 2)
+    )
+    .modelContainer(previewContainer)
+}
+
+#Preview("Edit Loop Sheet") {
+    let sphere = SphereModel(name: "Health", icon: "heart.fill", color: .red, priorityRank: 1)
+    EditLoopSheet(
+        isPresented: .constant(true),
+        loop: OpenLoopModel(content: "Call the dentist", sphere: sphere, importance: 2, estimatedMinutes: 10),
+        allSpheres: [sphere]
+    )
+    .modelContainer(previewContainer)
 }

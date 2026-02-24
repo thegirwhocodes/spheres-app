@@ -383,3 +383,9 @@ struct ProcessInboxSheet: View {
         DataManager.shared.processInboxItem(item, toSphere: sphere, importance: importance, modelContext: modelContext)
     }
 }
+
+#Preview("Inbox View") {
+    InboxView()
+        .modelContainer(previewContainer)
+        .frame(width: 700, height: 500)
+}

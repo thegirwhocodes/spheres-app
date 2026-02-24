@@ -867,3 +867,9 @@ struct SphereReviewCard: View {
         .opacity(sphere.isEnabled ? 1.0 : 0.6)
     }
 }
+
+#Preview("Smart Setup Onboarding") {
+    SmartSetupOnboardingFlow(isPresented: .constant(true))
+        .modelContainer(previewContainer)
+        .frame(width: 800, height: 600)
+}

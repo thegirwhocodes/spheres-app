@@ -1,5 +1,5 @@
 
-1. 
+1. Write a python script that will grab all your stuff/ new stuff adn process to add open loops and constantly run in background ( search in imessage, whatsapp, etc, wheerve you just search)
 2. What baout users who usecorpoarte email, or SSO, or some random email like yahoo orsomethign?
 3. What about users with mutliple emials and also of varying types (SSO, gmail, some random other email)
 4. 

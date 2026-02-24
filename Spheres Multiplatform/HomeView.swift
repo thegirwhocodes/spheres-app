@@ -401,3 +401,9 @@ struct StatCard: View {
         )
     }
 }
+
+#Preview("Home View") {
+    HomeView()
+        .modelContainer(previewContainer)
+        .frame(width: 700, height: 500)
+}

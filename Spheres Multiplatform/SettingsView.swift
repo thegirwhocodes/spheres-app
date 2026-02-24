@@ -594,3 +594,9 @@ struct ShortcutRow: View {
         }
     }
 }
+
+#Preview("Settings View") {
+    SettingsView()
+        .modelContainer(previewContainer)
+        .frame(width: 700, height: 600)
+}

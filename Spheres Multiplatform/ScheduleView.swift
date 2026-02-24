@@ -1214,3 +1214,9 @@ struct MiniCalendarPreview: View {
         }
     }
 }
+
+#Preview("Schedule View") {
+    ScheduleView()
+        .modelContainer(previewContainer)
+        .frame(width: 900, height: 600)
+}

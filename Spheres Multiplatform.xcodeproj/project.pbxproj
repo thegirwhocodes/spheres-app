@@ -54,6 +54,7 @@
 		0E6E9633FDCD37BC2F19A970 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0756466E2C4DE9625BBBB291 /* ScheduleView.swift */; };
 		3EC441E28AF654033E9200FD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4926BAAADD3064BE3BDBA5E9 /* SettingsView.swift */; };
 		C8C605E08367E23F9EEE832B /* QuickCaptureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30351CA363759558F5E196E0 /* QuickCaptureOverlay.swift */; };
+		D8B4F02A3E5C9B17A2F64D81 /* PreviewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A3E91F2D4B8A06F1E53C70 /* PreviewContent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -129,6 +130,7 @@
 		0756466E2C4DE9625BBBB291 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		4926BAAADD3064BE3BDBA5E9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		30351CA363759558F5E196E0 /* QuickCaptureOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureOverlay.swift; sourceTree = "<group>"; };
+		C7A3E91F2D4B8A06F1E53C70 /* PreviewContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewContent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -224,6 +226,7 @@
 				0756466E2C4DE9625BBBB291 /* ScheduleView.swift */,
 				4926BAAADD3064BE3BDBA5E9 /* SettingsView.swift */,
 				30351CA363759558F5E196E0 /* QuickCaptureOverlay.swift */,
+				C7A3E91F2D4B8A06F1E53C70 /* PreviewContent.swift */,
 				B1234567890ABCDEF123456C /* Assets.xcassets */,
 			);
 			path = "Spheres Multiplatform";
@@ -407,6 +410,7 @@
 				0E6E9633FDCD37BC2F19A970 /* ScheduleView.swift in Sources */,
 				3EC441E28AF654033E9200FD /* SettingsView.swift in Sources */,
 				C8C605E08367E23F9EEE832B /* QuickCaptureOverlay.swift in Sources */,
+				D8B4F02A3E5C9B17A2F64D81 /* PreviewContent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

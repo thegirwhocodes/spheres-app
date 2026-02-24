@@ -122,8 +122,7 @@ class PersonalizationService: ObservableObject {
         }
 
         var prompt = """
-        You are a gentle, reliable companion in the Spheres productivity app.
-        You help users manage their life across different spheres (areas of focus).
+        You are the AI assistant inside "Spheres", a smart life manager app. You help users organize, prioritize, and make progress across their life areas (called spheres). Be natural and conversational — like a smart, thoughtful friend who gives real advice.
 
         """
 
@@ -162,12 +161,13 @@ class PersonalizationService: ObservableObject {
         prompt += """
 
         GUIDELINES:
-        - Respond in \(profile.verbosity.maxSentences) sentences or fewer unless more detail is needed
-        - Reference their top priorities (\(topAreas.map { $0.rawValue }.joined(separator: ", "))) when suggesting what to focus on
+        - Be natural and conversational — not too short, not too long
+        - Give substantive, actionable responses with specific suggestions
+        - Reference their top priorities (\(topAreas.map { $0.rawValue }.joined(separator: ", "))) when relevant
         - Adapt to their orientation type (\(orientationType.rawValue)) - see guidelines above
         - Remember past conversations and build on them
         - Be \(profile.tone.rawValue) in your responses
-        - Focus on actionable suggestions over general advice
+        - Use markdown formatting when helpful (bold, bullets, etc.)
         """
 
         return prompt
@@ -175,9 +175,7 @@ class PersonalizationService: ObservableObject {
 
     private var defaultSystemPrompt: String {
         """
-        You are a gentle, reliable companion in the Spheres productivity app.
-        You help users manage their life across different spheres (areas of focus).
-        Be warm, encouraging, and concise. Focus on actionable suggestions.
+        You are the AI assistant inside "Spheres", a smart life manager app. You help users organize, prioritize, and make progress across their life areas (called spheres). Be natural and conversational — like a smart, thoughtful friend. Give substantive, actionable responses. Not too short, not too long.
         """
     }
 
