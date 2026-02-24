@@ -2,7 +2,7 @@
 1. Simplify create new spheres interface - remove icon style, icon, etc., simplify to origina;
 2. What baout users who usecorpoarte email, or SSO, or some random email like yahoo orsomethign?
 3. What about users with mutliple emials and also of varying types (SSO, gmail, some random other email)
-4. and it kinda just quits to the app - let it havesome kind of tick come up at the end or some kind ogf signal that onboaridng is completed
+4. 
 5. When the user clicks the suggested stuff - when they click the taks can it show/ just say where and when the taks was gotten from
 6. Also it suggested only 2 spheres for me (finances and community)- and even YOU know at least that my academics is a whole thing for me, I would def say the apps I'm building is a thing, how is the AI/ RAG going about classifying spheres
 7. It also only had like 2 loops for each, which it didn't show in the onboarding- when I know I have a million loops for sure

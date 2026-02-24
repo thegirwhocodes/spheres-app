@@ -16,6 +16,7 @@ enum SmartSetupStep: Int, CaseIterable {
     case permissions = 1
     case scanning = 2
     case review = 3
+    case complete = 4
 
     var progress: CGFloat {
         CGFloat(rawValue) / CGFloat(Self.allCases.count - 1)
@@ -31,6 +32,9 @@ struct SmartSetupOnboardingFlow: View {
     @StateObject private var googleAuth = GoogleAuthService.shared
     @State private var currentStep: SmartSetupStep = .welcome
     @State private var userName: String = ""
+    @State private var showCheckmark: Bool = false
+    @State private var completeSphereCount: Int = 0
+    @State private var completeTaskCount: Int = 0
     @AppStorage("claudeAPIKey") private var apiKey: String = ""
 
     var body: some View {
@@ -63,6 +67,8 @@ struct SmartSetupOnboardingFlow: View {
                         scanningStep
                     case .review:
                         reviewStep
+                    case .complete:
+                        completeStep
                     }
                 }
                 .transition(.asymmetric(
@@ -478,6 +484,60 @@ struct SmartSetupOnboardingFlow: View {
         }
     }
 
+    // MARK: - Step 5: Complete
+
+    private var completeStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            // Animated checkmark
+            ZStack {
+                Circle()
+                    .fill(SpheresTheme.accent.opacity(0.12))
+                    .frame(width: 120, height: 120)
+                    .scaleEffect(showCheckmark ? 1.0 : 0.5)
+                    .opacity(showCheckmark ? 1.0 : 0.0)
+
+                Circle()
+                    .fill(SpheresTheme.accent.opacity(0.06))
+                    .frame(width: 160, height: 160)
+                    .scaleEffect(showCheckmark ? 1.0 : 0.3)
+                    .opacity(showCheckmark ? 1.0 : 0.0)
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(SpheresTheme.accent)
+                    .scaleEffect(showCheckmark ? 1.0 : 0.0)
+                    .rotationEffect(.degrees(showCheckmark ? 0 : -30))
+            }
+
+            VStack(spacing: 8) {
+                Text("You're all set\(userName.isEmpty ? "" : ", \(userName)")!")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(SpheresTheme.textPrimary)
+                    .opacity(showCheckmark ? 1.0 : 0.0)
+                    .offset(y: showCheckmark ? 0 : 10)
+
+                if completeSphereCount > 0 {
+                    Text("\(completeSphereCount) spheres and \(completeTaskCount) tasks ready to go")
+                        .font(.system(size: 15))
+                        .foregroundColor(SpheresTheme.textSecondary)
+                        .opacity(showCheckmark ? 1.0 : 0.0)
+                        .offset(y: showCheckmark ? 0 : 10)
+                } else {
+                    Text("Your workspace is ready")
+                        .font(.system(size: 15))
+                        .foregroundColor(SpheresTheme.textSecondary)
+                        .opacity(showCheckmark ? 1.0 : 0.0)
+                        .offset(y: showCheckmark ? 0 : 10)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 40)
+    }
+
     // MARK: - Finish Actions
 
     private func finishSmartSetup() {
@@ -519,7 +579,27 @@ struct SmartSetupOnboardingFlow: View {
         } catch {
             print("DEBUG: finishSmartSetup save error: \(error)")
         }
-        isPresented = false
+
+        // Store counts for the complete screen
+        completeSphereCount = setup.spheres.filter { $0.isEnabled }.count
+        completeTaskCount = setup.spheres.filter { $0.isEnabled }.flatMap { $0.tasks.filter { $0.isEnabled } }.count
+
+        // Show completion screen
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = .complete
+        }
+
+        // Animate the checkmark in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                showCheckmark = true
+            }
+        }
+
+        // Auto-dismiss after 2.5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
+            isPresented = false
+        }
     }
 
     private func finishWithManualSetup() {
@@ -533,7 +613,19 @@ struct SmartSetupOnboardingFlow: View {
         UserDefaults.standard.set(true, forKey: "hasCleanedDefaultSpheres")
 
         try? modelContext.save()
-        isPresented = false
+
+        // Show completion screen briefly
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = .complete
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                showCheckmark = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            isPresented = false
+        }
     }
 }
 
