@@ -538,7 +538,8 @@ struct AppUpdateButton: View {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
             process.arguments = [
                 "/Users/naomiivie/Downloads/App/Spheres Mac - Version 1.0 Dec 2025/auto_update.py",
-                "--force"
+                "--force",
+                "--skip-pull"
             ]
             let pipe = Pipe()
             process.standardOutput = pipe
@@ -603,21 +604,9 @@ struct SpheresView: View {
     @State private var showingAddSphere = false
     @State private var quickViewSphere: SphereModel? = nil
     @State private var selectedSphereForFullView: SphereModel? = nil
+    @State private var editingSphereFromGrid: SphereModel? = nil
     @State private var hasSeededData = false
     @State private var draggingSphere: SphereModel? = nil
-
-    let mockSuggestions: [AISuggestion] = [
-        AISuggestion(
-            title: "60% done with presentation",
-            description: "I found a 2-hour slot Saturday morning. Want me to block it off?",
-            type: .schedule
-        ),
-        AISuggestion(
-            title: "Consider adding Finances",
-            description: "You've mentioned 'budget' and 'savings' 6 times recently.",
-            type: .newSphere
-        ),
-    ]
 
     let columns = [
         GridItem(.flexible(minimum: 180), spacing: 16),
@@ -683,6 +672,9 @@ struct SpheresView: View {
                                         },
                                         onQuickView: {
                                             quickViewSphere = sphere
+                                        },
+                                        onEdit: {
+                                            editingSphereFromGrid = sphere
                                         }
                                     )
                                     .opacity(draggingSphere?.id == sphere.id ? 0.5 : 1.0)
@@ -721,32 +713,8 @@ struct SpheresView: View {
                             }
                             .padding(.horizontal, 32)
 
-                            // AI Insights Section
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(SpheresTheme.accent)
-
-                                    Text("AI Insights")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(SpheresTheme.textSecondary)
-
-                                    Text("— your companion")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(SpheresTheme.textTertiary)
-                                }
-
-                                HStack(spacing: 12) {
-                                    ForEach(mockSuggestions) { suggestion in
-                                        AIInsightCard(suggestion: suggestion)
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 32)
-                            .padding(.top, 4)
-                            .padding(.bottom, 20)
+                            Spacer()
+                                .frame(height: 20)
                         }
                     }
                 }
@@ -765,6 +733,12 @@ struct SpheresView: View {
         }
         .sheet(item: $quickViewSphere) { sphere in
             SphereDetailSheet(sphere: sphere, loops: (sphere.loops ?? []).sorted { $0.importance < $1.importance }, allSpheres: spheres)
+        }
+        .sheet(item: $editingSphereFromGrid) { sphere in
+            EditSphereSheet(sphere: sphere, isPresented: Binding(
+                get: { editingSphereFromGrid != nil },
+                set: { if !$0 { editingSphereFromGrid = nil } }
+            ))
         }
     }
 
@@ -799,12 +773,14 @@ struct CompactSphereCard: View {
     let loops: [OpenLoopModel]
     let onTap: () -> Void
     let onQuickView: () -> Void
+    var onEdit: (() -> Void)? = nil
     @State private var isHovered = false
+    @State private var headerHovered = false
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 10) {
-                // Header
+                // Header — tappable for edit
                 HStack(spacing: 10) {
                     // Icon
                     ZStack {
@@ -828,9 +804,15 @@ struct CompactSphereCard: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(sphere.name)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(SpheresTheme.textPrimary)
+                        HStack(spacing: 5) {
+                            Text(sphere.name)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(SpheresTheme.textPrimary)
+
+                            Image(systemName: "pencil")
+                                .font(.system(size: 9))
+                                .foregroundColor(SpheresTheme.textTertiary.opacity(headerHovered ? 0.8 : 0))
+                        }
 
                         HStack(spacing: 4) {
                             Text("Rank \(sphere.priorityRank)")
@@ -854,22 +836,35 @@ struct CompactSphereCard: View {
                         .foregroundColor(SpheresTheme.textTertiary)
                         .opacity(isHovered ? 1 : 0.5)
                 }
+                .padding(6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(headerHovered ? sphere.color.opacity(0.06) : Color.clear)
+                )
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) { headerHovered = hovering }
+                }
+                .onTapGesture {
+                    onEdit?()
+                }
 
                 // Scrollable Loop Preview (only active loops)
                 if !loops.filter({ !$0.isCompleted }).isEmpty {
                     ScrollView(.vertical, showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 12) {
                             ForEach(loops.filter { !$0.isCompleted }.sorted { $0.importance < $1.importance }) { loop in
-                                HStack(spacing: 8) {
+                                HStack(alignment: .top, spacing: 8) {
                                     // Bullet in sphere color
                                     Circle()
                                         .fill(sphere.color.opacity(0.5))
                                         .frame(width: 5, height: 5)
+                                        .padding(.top, 6)
 
                                     Text(loop.content)
                                         .font(.system(size: 13))
                                         .foregroundColor(SpheresTheme.textSecondary)
-                                        .lineLimit(1)
+                                        .fixedSize(horizontal: false, vertical: true)
 
                                     Spacer()
 
@@ -885,7 +880,6 @@ struct CompactSphereCard: View {
                             }
                         }
                     }
-                    .frame(maxHeight: 180)
                 }
 
                 Spacer(minLength: 0)
@@ -1009,59 +1003,7 @@ struct MiniProgressPie: View {
     }
 }
 
-// MARK: - AI Insight Card
-struct AIInsightCard: View {
-    let suggestion: AISuggestion
-    @State private var isHovered = false
 
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: iconForType)
-                .font(.system(size: 10))
-                .foregroundColor(SpheresTheme.accent)
-                .frame(width: 22, height: 22)
-                .background(SpheresTheme.accent.opacity(0.15))
-                .clipShape(Circle())
-
-            Text(suggestion.title)
-                .font(.system(size: 11))
-                .foregroundColor(SpheresTheme.textPrimary)
-                .lineLimit(1)
-
-            Button(actionLabel) {}
-                .buttonStyle(SmallAccentButtonStyle())
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(SpheresTheme.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isHovered ? SpheresTheme.accent.opacity(0.2) : SpheresTheme.border, lineWidth: 1)
-                )
-        )
-        .onHover { isHovered = $0 }
-    }
-
-    var iconForType: String {
-        switch suggestion.type {
-        case .newSphere: return "plus.circle"
-        case .resurface: return "arrow.counterclockwise"
-        case .schedule: return "calendar"
-        case .insight: return "lightbulb"
-        }
-    }
-
-    var actionLabel: String {
-        switch suggestion.type {
-        case .newSphere: return "Create"
-        case .resurface: return "View"
-        case .schedule: return "Schedule"
-        case .insight: return "View"
-        }
-    }
-}
 
 // MARK: - Sphere Full Page View
 struct SphereFullPageView: View {
@@ -1074,6 +1016,7 @@ struct SphereFullPageView: View {
     @State private var draggedLoop: OpenLoopModel?
     @State private var showingEditSphere = false
     @State private var showingDeleteConfirmation = false
+    @State private var headerHovered = false
     @AppStorage("showCompletedLoops") private var showCompletedLoops: Bool = true
 
     private var activeLoops: [OpenLoopModel] {
@@ -1137,59 +1080,82 @@ struct SphereFullPageView: View {
 
             // Sphere Header
             HStack(spacing: 20) {
-                ZStack {
-                    Circle()
-                        .fill(sphere.color.opacity(0.15))
-                        .frame(width: 80, height: 80)
+                // Clickable sphere info — opens edit sheet
+                HStack(spacing: 20) {
+                    ZStack {
+                        Circle()
+                            .fill(sphere.color.opacity(0.15))
+                            .frame(width: 80, height: 80)
 
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [sphere.color, sphere.color.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [sphere.color, sphere.color.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .frame(width: 64, height: 64)
-                        .shadow(color: sphere.color.opacity(0.3), radius: 10, x: 0, y: 4)
+                            .frame(width: 64, height: 64)
+                            .shadow(color: sphere.color.opacity(0.3), radius: 10, x: 0, y: 4)
 
-                    Image(systemName: sphere.icon)
-                        .font(.system(size: 26))
-                        .foregroundColor(.white)
-                }
+                        Image(systemName: sphere.icon)
+                            .font(.system(size: 26))
+                            .foregroundColor(.white)
+                    }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(sphere.name)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(SpheresTheme.textPrimary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text(sphere.name)
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(SpheresTheme.textPrimary)
 
-                    HStack(spacing: 12) {
-                        HStack(spacing: 4) {
-                            Text("Rank")
+                            Image(systemName: "pencil")
                                 .font(.system(size: 12))
-                                .foregroundColor(SpheresTheme.textTertiary)
-                            Text("\(sphere.priorityRank)")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(sphere.color)
+                                .foregroundColor(SpheresTheme.textTertiary.opacity(headerHovered ? 0.8 : 0.3))
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(SpheresTheme.surface)
+
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Text("Rank")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(SpheresTheme.textTertiary)
+                                Text("\(sphere.priorityRank)")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(sphere.color)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(SpheresTheme.surface)
+                            )
+
+                            Text("\(loops.count) open loops")
+                                .font(.system(size: 13))
+                                .foregroundColor(SpheresTheme.textSecondary)
+                        }
+
+                        if !sphere.sphereDescription.isEmpty {
+                            Text(sphere.sphereDescription)
+                                .font(.system(size: 13))
+                                .foregroundColor(SpheresTheme.textTertiary)
+                                .padding(.top, 2)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(headerHovered ? SpheresTheme.surface : Color.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(headerHovered ? sphere.color.opacity(0.2) : Color.clear, lineWidth: 1)
                         )
-
-                        Text("\(loops.count) open loops")
-                            .font(.system(size: 13))
-                            .foregroundColor(SpheresTheme.textSecondary)
-                    }
-
-                    if !sphere.sphereDescription.isEmpty {
-                        Text(sphere.sphereDescription)
-                            .font(.system(size: 13))
-                            .foregroundColor(SpheresTheme.textTertiary)
-                            .padding(.top, 2)
-                    }
+                )
+                .contentShape(Rectangle())
+                .onTapGesture { showingEditSphere = true }
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) { headerHovered = hovering }
                 }
 
                 Spacer()
@@ -4375,167 +4341,126 @@ struct AddSphereSheet: View {
     @Binding var isPresented: Bool
     @Environment(\.modelContext) private var modelContext
     @State private var name = ""
-    @State private var sphereDescription = ""
     @State private var selectedIcon = "star.fill"
     @State private var selectedColor = Color.purple
     @State private var priorityRank = 3
-    @State private var selectedCategory = 0
-    @State private var selectedIconStyle: IconLibrary.IconStyle = .filled
-    @State private var showingImagePicker = false
 
     let colors: [Color] = [.purple, .blue, .green, .orange, .red, .pink, .yellow, .cyan, .mint, .indigo, .teal, .brown]
 
-    var currentIcons: [(String, [String])] {
-        IconLibrary.icons(for: selectedIconStyle)
-    }
+    private let icons = [
+        "star.fill", "heart.fill", "briefcase.fill", "book.fill", "graduationcap.fill",
+        "figure.run", "cross.fill", "dollarsign.circle.fill", "house.fill", "person.2.fill",
+        "leaf.fill", "paintbrush.fill", "music.note", "globe.americas.fill", "lightbulb.fill",
+        "flame.fill", "hands.sparkles.fill", "bolt.fill", "sparkles", "sun.max.fill",
+        "moon.fill", "cloud.fill", "pencil", "doc.fill", "folder.fill",
+        "envelope.fill", "phone.fill", "desktopcomputer", "camera.fill", "film"
+    ]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                // Header
-                HStack {
-                    Text("Create New Sphere")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(SpheresTheme.textPrimary)
+        VStack(spacing: 18) {
+            // Header
+            HStack {
+                Text("Create New Sphere")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SpheresTheme.textPrimary)
 
-                    Spacer()
+                Spacer()
 
-                    Button(action: { isPresented = false }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(SpheresTheme.textTertiary)
-                    }
-                    .buttonStyle(.plain)
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(SpheresTheme.textTertiary)
                 }
+                .buttonStyle(.plain)
+            }
 
-                // Preview
-                ZStack {
-                    Circle()
-                        .fill(selectedColor.opacity(0.15))
-                        .frame(width: 72, height: 72)
+            // Preview + Priority + Name
+            HStack(spacing: 14) {
+                // Sphere icon with priority badge
+                ZStack(alignment: .bottomTrailing) {
+                    ZStack {
+                        Circle()
+                            .fill(selectedColor.opacity(0.15))
+                            .frame(width: 72, height: 72)
 
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [selectedColor, selectedColor.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [selectedColor, selectedColor.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .frame(width: 56, height: 56)
-                        .shadow(color: selectedColor.opacity(0.4), radius: 10, x: 0, y: 4)
+                            .frame(width: 56, height: 56)
+                            .shadow(color: selectedColor.opacity(0.4), radius: 10, x: 0, y: 4)
 
-                    Image(systemName: selectedIcon)
-                        .font(.system(size: 22))
+                        Image(systemName: selectedIcon)
+                            .font(.system(size: 22))
+                            .foregroundColor(.white)
+                    }
+
+                    // Priority badge
+                    Text("\(priorityRank)")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(priorityColor(priorityRank)))
+                        .offset(x: 4, y: 4)
                 }
 
-                // Name
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Name")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    // Priority selector
+                    HStack(spacing: 4) {
+                        ForEach(1...5, id: \.self) { rank in
+                            Button(action: { priorityRank = rank }) {
+                                Text("\(rank)")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(priorityRank == rank ? .white : priorityColor(rank))
+                                    .frame(width: 26, height: 26)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(priorityRank == rank ? priorityColor(rank) : priorityColor(rank).opacity(0.15))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
 
+                    // Name field
                     TextField("e.g., Health, Career, Family", text: $name)
                         .textFieldStyle(.plain)
                         .font(.system(size: 14))
-                        .padding(12)
+                        .padding(10)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
                                 .fill(SpheresTheme.background)
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(SpheresTheme.border))
                         )
                 }
+            }
 
-                // Icon Style Picker
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Icon Style")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
+            // Icon
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Icon")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(SpheresTheme.textSecondary)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(IconLibrary.IconStyle.allCases, id: \.self) { style in
-                                Button(action: { selectedIconStyle = style }) {
-                                    VStack(spacing: 4) {
-                                        Text(style.rawValue)
-                                            .font(.system(size: 11, weight: .medium))
-                                        Text(style.description)
-                                            .font(.system(size: 8))
-                                            .foregroundColor(selectedIconStyle == style ? .white.opacity(0.7) : SpheresTheme.textTertiary)
-                                    }
-                                    .foregroundColor(selectedIconStyle == style ? .white : SpheresTheme.textSecondary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(selectedIconStyle == style ? SpheresTheme.accent : SpheresTheme.surface)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-
-                // Icon Category & Grid
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Icon")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(SpheresTheme.textSecondary)
-
-                        Spacer()
-
-                        Button(action: { showingImagePicker = true }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 10))
-                                Text("Upload custom")
-                                    .font(.system(size: 10))
-                            }
-                            .foregroundColor(SpheresTheme.accent)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 10), spacing: 8) {
+                    ForEach(icons, id: \.self) { icon in
+                        Button(action: { selectedIcon = icon }) {
+                            Image(systemName: icon)
+                                .font(.system(size: 15))
+                                .foregroundColor(selectedIcon == icon ? .white : SpheresTheme.textSecondary)
+                                .frame(width: 34, height: 34)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(selectedIcon == icon ? selectedColor : SpheresTheme.surface)
+                                )
                         }
                         .buttonStyle(.plain)
                     }
-
-                    // Category tabs
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(Array(currentIcons.enumerated()), id: \.0) { index, category in
-                                Button(action: { selectedCategory = index }) {
-                                    Text(category.0)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(selectedCategory == index ? .white : SpheresTheme.textSecondary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .fill(selectedCategory == index ? SpheresTheme.accent : SpheresTheme.surface)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-
-                    // Icons grid
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 10) {
-                        ForEach(currentIcons[min(selectedCategory, currentIcons.count - 1)].1, id: \.self) { icon in
-                            Button(action: { selectedIcon = icon }) {
-                                Image(systemName: icon)
-                                    .font(.system(size: 16))
-                                    .foregroundColor(selectedIcon == icon ? .white : SpheresTheme.textSecondary)
-                                    .frame(width: 36, height: 36)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(selectedIcon == icon ? selectedColor : SpheresTheme.surface)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
                 }
+            }
 
             // Color
             VStack(alignment: .leading, spacing: 8) {
@@ -4560,53 +4485,33 @@ struct AddSphereSheet: View {
                 }
             }
 
-            // Priority
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Sphere Priority")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(SpheresTheme.textSecondary)
+            // Actions
+            HStack(spacing: 12) {
+                Button("Cancel") { isPresented = false }
+                    .buttonStyle(GhostButtonStyle())
 
-                HStack(spacing: 10) {
-                    ForEach(1...5, id: \.self) { rank in
-                        Button(action: { priorityRank = rank }) {
-                            Text("\(rank)")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(priorityRank == rank ? .white : SpheresTheme.textSecondary)
-                                .frame(width: 36, height: 36)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(priorityRank == rank ? SpheresTheme.accent : SpheresTheme.surface)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    Spacer()
-
-                    Text("1 = most important")
-                        .font(.system(size: 10))
-                        .foregroundColor(SpheresTheme.textTertiary)
+                Button("Create Sphere") {
+                    createSphere()
+                    isPresented = false
                 }
+                    .buttonStyle(AccentButtonStyle())
+                    .disabled(name.isEmpty)
             }
-
-                // Actions
-                HStack(spacing: 12) {
-                    Button("Cancel") { isPresented = false }
-                        .buttonStyle(GhostButtonStyle())
-
-                    Button("Create Sphere") {
-                        createSphere()
-                        isPresented = false
-                    }
-                        .buttonStyle(AccentButtonStyle())
-                        .disabled(name.isEmpty)
-                }
-                .padding(.top, 8)
-            }
-            .padding(24)
+            .padding(.top, 8)
         }
-        .frame(width: 520, height: 620)
+        .padding(24)
+        .frame(width: 460)
         .background(SpheresTheme.surface)
+    }
+
+    private func priorityColor(_ rank: Int) -> Color {
+        switch rank {
+        case 1: return Color(red: 0.9, green: 0.2, blue: 0.15)   // Fiery red
+        case 2: return Color(red: 0.85, green: 0.35, blue: 0.25)  // Warm red-orange
+        case 3: return Color(red: 0.75, green: 0.45, blue: 0.35)  // Muted terracotta
+        case 4: return Color(red: 0.55, green: 0.5, blue: 0.48)   // Warm gray
+        default: return Color(red: 0.4, green: 0.4, blue: 0.4)    // Cool gray
+        }
     }
 
     private func createSphere() {
@@ -4614,7 +4519,7 @@ struct AddSphereSheet: View {
             name: name,
             icon: selectedIcon,
             color: selectedColor,
-            description: sphereDescription,
+            description: "",
             priorityRank: priorityRank,
             customImageData: nil,
             modelContext: modelContext
@@ -4628,219 +4533,183 @@ struct EditSphereSheet: View {
     @Binding var isPresented: Bool
     @Environment(\.modelContext) private var modelContext
     @State private var name: String = ""
-    @State private var sphereDescription: String = ""
     @State private var selectedIcon: String = ""
     @State private var selectedColor: Color = .purple
     @State private var priorityRank: Int = 3
-    @State private var selectedCategory = 0
-    @State private var selectedIconStyle: IconLibrary.IconStyle = .filled
 
     let colors: [Color] = [.purple, .blue, .green, .orange, .red, .pink, .yellow, .cyan, .mint, .indigo, .teal, .brown]
 
-    var currentIcons: [(String, [String])] {
-        IconLibrary.icons(for: selectedIconStyle)
-    }
+    private let icons = [
+        "star.fill", "heart.fill", "briefcase.fill", "book.fill", "graduationcap.fill",
+        "figure.run", "cross.fill", "dollarsign.circle.fill", "house.fill", "person.2.fill",
+        "leaf.fill", "paintbrush.fill", "music.note", "globe.americas.fill", "lightbulb.fill",
+        "flame.fill", "hands.sparkles.fill", "bolt.fill", "sparkles", "sun.max.fill",
+        "moon.fill", "cloud.fill", "pencil", "doc.fill", "folder.fill",
+        "envelope.fill", "phone.fill", "desktopcomputer", "camera.fill", "film"
+    ]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                // Header
-                HStack {
-                    Text("Edit Sphere")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(SpheresTheme.textPrimary)
+        VStack(spacing: 18) {
+            // Header
+            HStack {
+                Text("Edit Sphere")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(SpheresTheme.textPrimary)
 
-                    Spacer()
+                Spacer()
 
-                    Button(action: { isPresented = false }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(SpheresTheme.textTertiary)
-                    }
-                    .buttonStyle(.plain)
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(SpheresTheme.textTertiary)
                 }
+                .buttonStyle(.plain)
+            }
 
-                // Preview
-                ZStack {
-                    Circle()
-                        .fill(selectedColor.opacity(0.15))
-                        .frame(width: 72, height: 72)
+            // Preview + Priority + Name
+            HStack(spacing: 14) {
+                ZStack(alignment: .bottomTrailing) {
+                    ZStack {
+                        Circle()
+                            .fill(selectedColor.opacity(0.15))
+                            .frame(width: 72, height: 72)
 
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [selectedColor, selectedColor.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [selectedColor, selectedColor.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .frame(width: 56, height: 56)
-                        .shadow(color: selectedColor.opacity(0.4), radius: 10, x: 0, y: 4)
+                            .frame(width: 56, height: 56)
+                            .shadow(color: selectedColor.opacity(0.4), radius: 10, x: 0, y: 4)
 
-                    Image(systemName: selectedIcon)
-                        .font(.system(size: 22))
+                        Image(systemName: selectedIcon)
+                            .font(.system(size: 22))
+                            .foregroundColor(.white)
+                    }
+
+                    Text("\(priorityRank)")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(priorityColor(priorityRank)))
+                        .offset(x: 4, y: 4)
                 }
 
-                // Name
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Name")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
-
-                    TextField("e.g., Health, Career, Family", text: $name)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 14))
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(SpheresTheme.background)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(SpheresTheme.border))
-                        )
-                }
-
-                // Description
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Description (optional)")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
-
-                    TextField("Brief description", text: $sphereDescription)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 14))
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(SpheresTheme.background)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(SpheresTheme.border))
-                        )
-                }
-
-                // Color
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Color")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
-
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
-                        ForEach(colors, id: \.self) { color in
-                            Button(action: { selectedColor = color }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(color)
-                                        .frame(width: 32, height: 32)
-                                    if selectedColor == color {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-
-                // Icon Grid (simplified)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Icon")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(Array(currentIcons.enumerated()), id: \.0) { index, category in
-                                Button(action: { selectedCategory = index }) {
-                                    Text(category.0)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(selectedCategory == index ? .white : SpheresTheme.textSecondary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .fill(selectedCategory == index ? SpheresTheme.accent : SpheresTheme.surface)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 8) {
-                        ForEach(currentIcons[safe: selectedCategory]?.1 ?? [], id: \.self) { icon in
-                            Button(action: { selectedIcon = icon }) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(selectedIcon == icon ? selectedColor : SpheresTheme.surface)
-                                        .frame(width: 40, height: 40)
-                                    Image(systemName: icon)
-                                        .font(.system(size: 16))
-                                        .foregroundColor(selectedIcon == icon ? .white : SpheresTheme.textSecondary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .frame(height: 120)
-                }
-
-                // Priority
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Priority Rank")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(SpheresTheme.textSecondary)
-
-                    HStack(spacing: 8) {
+                    HStack(spacing: 4) {
                         ForEach(1...5, id: \.self) { rank in
                             Button(action: { priorityRank = rank }) {
                                 Text("\(rank)")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(priorityRank == rank ? .white : SpheresTheme.textSecondary)
-                                    .frame(width: 36, height: 36)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(priorityRank == rank ? .white : priorityColor(rank))
+                                    .frame(width: 26, height: 26)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(priorityRank == rank ? selectedColor : SpheresTheme.surface)
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(priorityRank == rank ? priorityColor(rank) : priorityColor(rank).opacity(0.15))
                                     )
                             }
                             .buttonStyle(.plain)
                         }
-
-                        Text(priorityRank == 1 ? "Highest" : priorityRank == 5 ? "Lowest" : "")
-                            .font(.system(size: 11))
-                            .foregroundColor(SpheresTheme.textTertiary)
                     }
-                }
 
-                // Actions
-                HStack(spacing: 12) {
-                    Button("Cancel") { isPresented = false }
-                        .buttonStyle(GhostButtonStyle())
-
-                    Button("Save Changes") {
-                        saveSphere()
-                        isPresented = false
-                    }
-                        .buttonStyle(AccentButtonStyle())
-                        .disabled(name.isEmpty)
+                    TextField("Sphere name", text: $name)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 14))
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(SpheresTheme.background)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(SpheresTheme.border))
+                        )
                 }
-                .padding(.top, 8)
             }
-            .padding(24)
+
+            // Icon
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Icon")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(SpheresTheme.textSecondary)
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 10), spacing: 8) {
+                    ForEach(icons, id: \.self) { icon in
+                        Button(action: { selectedIcon = icon }) {
+                            Image(systemName: icon)
+                                .font(.system(size: 15))
+                                .foregroundColor(selectedIcon == icon ? .white : SpheresTheme.textSecondary)
+                                .frame(width: 34, height: 34)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(selectedIcon == icon ? selectedColor : SpheresTheme.surface)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Color
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Color")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(SpheresTheme.textSecondary)
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
+                    ForEach(colors, id: \.self) { color in
+                        Button(action: { selectedColor = color }) {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white, lineWidth: selectedColor == color ? 2 : 0)
+                                        .padding(2)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Actions
+            HStack(spacing: 12) {
+                Button("Cancel") { isPresented = false }
+                    .buttonStyle(GhostButtonStyle())
+
+                Button("Save Changes") {
+                    saveSphere()
+                    isPresented = false
+                }
+                    .buttonStyle(AccentButtonStyle())
+                    .disabled(name.isEmpty)
+            }
+            .padding(.top, 8)
         }
-        .frame(width: 520, height: 580)
+        .padding(24)
+        .frame(width: 460)
         .background(SpheresTheme.surface)
         .onAppear {
             name = sphere.name
-            sphereDescription = sphere.sphereDescription
             selectedIcon = sphere.icon
             selectedColor = sphere.color
             priorityRank = sphere.priorityRank
         }
     }
 
+    private func priorityColor(_ rank: Int) -> Color {
+        switch rank {
+        case 1: return Color(red: 0.9, green: 0.2, blue: 0.15)
+        case 2: return Color(red: 0.85, green: 0.35, blue: 0.25)
+        case 3: return Color(red: 0.75, green: 0.45, blue: 0.35)
+        case 4: return Color(red: 0.55, green: 0.5, blue: 0.48)
+        default: return Color(red: 0.4, green: 0.4, blue: 0.4)
+        }
+    }
+
     private func saveSphere() {
         sphere.name = name
-        sphere.sphereDescription = sphereDescription
         sphere.icon = selectedIcon
         sphere.setColor(selectedColor)
         sphere.priorityRank = priorityRank

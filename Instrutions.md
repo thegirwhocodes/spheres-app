@@ -1,5 +1,5 @@
 
-1. Simplify create new spheres interface - remove icon style, icon, etc., simplify to origina;
+1. 
 2. What baout users who usecorpoarte email, or SSO, or some random email like yahoo orsomethign?
 3. What about users with mutliple emials and also of varying types (SSO, gmail, some random other email)
 4. 
@@ -40,3 +40,5 @@
 37. Work on the app to school app
 38. Use google cloud or build a cloud backend that allows the user to
 39. AI suggestion annoying if I already closed it once - work on fleshing out that deature
+40. Email verification process for non-test users
+41.

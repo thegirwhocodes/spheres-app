@@ -11,6 +11,7 @@ Usage:
     python3 auto_update.py --daemon     # Run every 2 hours in background
     python3 auto_update.py --interval 1 # Custom interval in hours
     python3 auto_update.py --force      # Force rebuild even if no changes
+    python3 auto_update.py --clean      # Clean build (wipes derived data first)
 """
 
 import subprocess
@@ -95,13 +96,23 @@ def pull_latest():
         return True
 
 
-def build_app():
+def build_app(clean=False):
+    if clean:
+        log("Clean build requested — wiping derived data...")
+        if BUILD_DIR.exists():
+            shutil.rmtree(str(BUILD_DIR))
+        log("Derived data cleared.")
+
     log("Building Spheres...")
+    cpu_count = os.cpu_count() or 4
     build_cmd = (
         f'xcodebuild -project "{PROJECT_FILE}" '
         f'-scheme "{SCHEME}" '
         f'-configuration Release '
         f'-derivedDataPath "{BUILD_DIR}" '
+        f'-parallelizeTargets '
+        f'-jobs {cpu_count} '
+        f'ONLY_ACTIVE_ARCH=YES '
         f'build '
         f'2>&1'
     )
@@ -193,11 +204,12 @@ rm -f "{SWAP_SCRIPT}"
     log("Swap script launched. App will quit, update, and relaunch.")
 
 
-def update(force=False):
+def update(force=False, clean=False, skip_pull=False):
     log("=" * 50)
     log("Starting update check...")
 
-    pull_latest()
+    if not skip_pull:
+        pull_latest()
 
     if not force and not has_changes():
         log("No code changes detected. Skipping build.")
@@ -205,7 +217,7 @@ def update(force=False):
 
     current_hash = get_code_hash()
 
-    if not build_app():
+    if not build_app(clean=clean):
         log("Update aborted due to build failure.")
         return False
 
@@ -247,12 +259,14 @@ def main():
     parser.add_argument("--daemon", action="store_true", help="Run in loop mode")
     parser.add_argument("--interval", type=float, default=2, help="Hours between checks (default: 2)")
     parser.add_argument("--force", action="store_true", help="Force rebuild even if no changes")
+    parser.add_argument("--clean", action="store_true", help="Clean build (wipes derived data first)")
+    parser.add_argument("--skip-pull", action="store_true", help="Skip git pull (for local builds)")
     args = parser.parse_args()
 
     if args.daemon:
         daemon_mode(args.interval)
     else:
-        update(force=args.force)
+        update(force=args.force, clean=args.clean, skip_pull=args.skip_pull)
 
 
 if __name__ == "__main__":
