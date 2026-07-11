@@ -32,6 +32,10 @@ secrets.plist
 
 # Claude Code local files
 .claude/
+.claude-sessions/
+
+# Generated updater output
+auto_update.log
 
 # Personal files - not part of app
 Others- Career/

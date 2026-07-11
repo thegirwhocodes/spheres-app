@@ -23,7 +23,6 @@ struct SpheresView: View {
     @State private var showingDeleteConfirmation = false
     @State private var hoveredSphereId: UUID? = nil
     @State private var showingCardView = false
-    @State private var swipeDragOffset: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -44,70 +43,58 @@ struct SpheresView: View {
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(SpheresTheme.textPrimary)
 
-                            HStack(spacing: 8) {
-                                Text("\(spheres.count) spheres")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(SpheresTheme.textSecondary)
-
-                                // Page indicator dots
-                                HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(showingCardView ? SpheresTheme.textTertiary : SpheresTheme.accent)
-                                        .frame(width: 6, height: 6)
-                                    Circle()
-                                        .fill(showingCardView ? SpheresTheme.accent : SpheresTheme.textTertiary)
-                                        .frame(width: 6, height: 6)
-                                }
-                                .animation(.easeInOut(duration: 0.2), value: showingCardView)
-                            }
+                            Text("\(spheres.count) spheres")
+                                .font(.system(size: 14))
+                                .foregroundColor(SpheresTheme.textSecondary)
                         }
 
                         Spacer()
 
-                        Button(action: { showingAddSphere = true }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 12, weight: .semibold))
-                                Text("Add Sphere")
-                                    .font(.system(size: 13, weight: .medium))
+                        HStack(spacing: 10) {
+                            // View toggle button
+                            Button(action: {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    showingCardView.toggle()
+                                }
+                            }) {
+                                Image(systemName: showingCardView ? "circle.grid.2x2.fill" : "rectangle.grid.1x2.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(SpheresTheme.textSecondary)
+                                    .frame(width: 30, height: 30)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(SpheresTheme.surface)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(SpheresTheme.border, lineWidth: 1)
+                                            )
+                                    )
                             }
+                            .buttonStyle(.plain)
+                            .help(showingCardView ? "Bubble View" : "Card View")
+
+                            Button(action: { showingAddSphere = true }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    Text("Add Sphere")
+                                        .font(.system(size: 13, weight: .medium))
+                                }
+                            }
+                            .buttonStyle(AccentButtonStyle())
                         }
-                        .buttonStyle(AccentButtonStyle())
                     }
                     .padding(.horizontal, 32)
                     .padding(.top, 24)
                     .padding(.bottom, 16)
 
-                    // Swipeable Content
-                    GeometryReader { outerGeo in
-                        HStack(spacing: 0) {
-                            // Page 1: Bouncy Balls
-                            bubblesPage
-                                .frame(width: outerGeo.size.width)
-
-                            // Page 2: Card Grid
-                            cardGridPage
-                                .frame(width: outerGeo.size.width)
-                        }
-                        .offset(x: showingCardView ? -outerGeo.size.width + swipeDragOffset : swipeDragOffset)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingCardView)
-                        .gesture(
-                            DragGesture(minimumDistance: 30)
-                                .onChanged { value in
-                                    swipeDragOffset = value.translation.width
-                                }
-                                .onEnded { value in
-                                    let threshold: CGFloat = 80
-                                    if value.translation.width < -threshold && !showingCardView {
-                                        showingCardView = true
-                                    } else if value.translation.width > threshold && showingCardView {
-                                        showingCardView = false
-                                    }
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        swipeDragOffset = 0
-                                    }
-                                }
-                        )
+                    // Content: Bubbles or Card Grid
+                    if showingCardView {
+                        cardGridPage
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    } else {
+                        bubblesPage
+                            .transition(.move(edge: .leading).combined(with: .opacity))
                     }
                 }
                 .transition(.move(edge: .leading))
@@ -120,6 +107,7 @@ struct SpheresView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: selectedSphereForFullView != nil)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingCardView)
         .sheet(isPresented: $showingAddSphere) {
             AddSphereSheet(isPresented: $showingAddSphere)
         }
@@ -392,21 +380,20 @@ struct BouncySphereOrb: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                // Outer glow halo (fades out on hover)
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [sphere.color.opacity(glowPulse * 0.4), sphere.color.opacity(0.05), .clear],
-                            center: .center,
-                            startRadius: ballSize * 0.25,
-                            endRadius: ballSize * 0.7
-                        )
+        ZStack {
+            // Outer glow halo (fades out on hover)
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [sphere.color.opacity(glowPulse * 0.4), sphere.color.opacity(0.05), .clear],
+                        center: .center,
+                        startRadius: ballSize * 0.25,
+                        endRadius: ballSize * 0.7
                     )
-                    .frame(width: ballSize * 1.5, height: ballSize * 1.5)
-                    .opacity(isHovered ? 0 : 1)
-                    .allowsHitTesting(false)
+                )
+                .frame(width: ballSize * 1.5, height: ballSize * 1.5)
+                .opacity(isHovered ? 0 : 1)
+                .allowsHitTesting(false)
 
                 // Morphing shape: circle → rounded card
                 RoundedRectangle(cornerRadius: morphCornerRadius, style: .continuous)
@@ -544,13 +531,13 @@ struct BouncySphereOrb: View {
                     .frame(width: morphWidth, height: morphHeight)
                     .transition(.opacity)
                 }
-            }
-            .frame(width: morphWidth, height: morphHeight)
-            .animation(.spring(response: 0.45, dampingFraction: 0.6), value: isHovered)
-            .scaleEffect(isHovered ? 1.0 : breatheScale)
-            .offset(x: isHovered ? 0 : floatX, y: isHovered ? -8 : floatY)
         }
-        .buttonStyle(.plain)
+        .frame(width: morphWidth, height: morphHeight)
+        .animation(.spring(response: 0.45, dampingFraction: 0.6), value: isHovered)
+        .scaleEffect(isHovered ? 1.0 : breatheScale)
+        .offset(x: isHovered ? 0 : floatX, y: isHovered ? -8 : floatY)
+        .contentShape(RoundedRectangle(cornerRadius: morphCornerRadius))
+        .onTapGesture { onTap() }
         .onHover { hovering in
             withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) {
                 isHovered = hovering
@@ -1010,10 +997,9 @@ struct RoundedSphereCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Header: icon + name
-                HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Header: icon + name
+            HStack(spacing: 10) {
                     ZStack {
                         Circle()
                             .fill(
@@ -1097,10 +1083,10 @@ struct RoundedSphereCard: View {
                     .stroke(isHovered ? sphere.color.opacity(0.5) : SpheresTheme.border, lineWidth: 1)
             )
             .shadow(color: isHovered ? sphere.color.opacity(0.2) : .black.opacity(0.1), radius: isHovered ? 12 : 4, y: isHovered ? 4 : 2)
-            .scaleEffect(isHovered ? 1.02 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
-        }
-        .buttonStyle(.plain)
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .contentShape(RoundedRectangle(cornerRadius: 24))
+        .onTapGesture { onTap() }
         .onHover { hovering in
             isHovered = hovering
         }

@@ -12,9 +12,30 @@ import SwiftData
 @MainActor
 struct PersonalDataSeeder {
 
+    /// Exact sphere names created by the v1 seed that need cleanup.
+    private static let v1SeedSphereNames: Set<String> = [
+        "Academics", "Career", "Faith", "Community", "Music", "Spheres App", "Health", "Finances"
+    ]
+
     /// Call once to populate the app with personalized spheres and loops.
-    /// Checks AppStorage flag to prevent duplicate seeding.
     static func seedIfNeeded(modelContext: ModelContext) {
+        // Force-delete all spheres with exact v1 seed names
+        if !UserDefaults.standard.bool(forKey: "hasCleanedUpSeedV3") {
+            let descriptor = FetchDescriptor<SphereModel>()
+            if let allSpheres = try? modelContext.fetch(descriptor) {
+                for sphere in allSpheres where v1SeedSphereNames.contains(sphere.name) {
+                    if let loops = sphere.loops {
+                        for loop in loops { modelContext.delete(loop) }
+                    }
+                    modelContext.delete(sphere)
+                }
+            }
+            try? modelContext.save()
+            UserDefaults.standard.set(true, forKey: "hasCleanedUpSeedV3")
+            // Re-seed with merge logic after cleanup
+            UserDefaults.standard.set(false, forKey: "hasSeededPersonalData")
+        }
+
         let alreadySeeded = UserDefaults.standard.bool(forKey: "hasSeededPersonalData")
         guard !alreadySeeded else { return }
 
